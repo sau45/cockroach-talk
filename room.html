@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Voice Room | CockroachTalk</title>
+  <meta name="description" content="Live voice room stage on CockroachTalk. Listen and talk live with WebRTC audio.">
+
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/animations.css">
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="js/includePartials.js"></script>
+  <script type="module" src="js/pages/room.js?v=20260804_v7"></script>
+</head>
+
+<body>
+
+  <div id="site-header"></div>
+
+  <main class="site-main">
+    <section class="site-container" style="padding-top: 0.75rem;">
+
+      <!-- Toast Container for Real-time Notifications -->
+      <div id="toast-container" class="toast-container"></div>
+
+      <!-- Sleek Compact Single-Line Room Top Bar -->
+      <div class="room-top-bar">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <a href="junctions.html" class="btn-back-pill" title="Back to Junctions">
+            ←
+          </a>
+          <h1 id="room-title" class="room-heading-title">State Cockroach</h1>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <div class="badge-capacity" id="stage-capacity-badge">
+            🎙️ Stage: 0/8
+          </div>
+          <div class="badge-live">
+            <span class="badge-live-dot"></span>
+            <span id="room-listener-count">0 Total</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Stage Grid -->
+      <div class="spaces-stage-container">
+        <div class="stage-header">
+          <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+            <h2 class="stage-section-title">🔥 Live Active Stage (Max 8)</h2>
+            <span id="stage-mod-stats" class="stage-mod-stats"></span>
+          </div>
+          <span id="senior-mod-indicator" class="senior-mod-hint" style="display:none;">👑 Senior Mod Removal Lead
+            Active</span>
+        </div>
+        <div id="stage-grid" class="spaces-stage-grid">
+          <!-- Rendered dynamically by room.js -->
+        </div>
+      </div>
+
+      <!-- Waiting Queue Section -->
+      <div class="waiting-queue-container">
+        <div class="queue-header">
+          <h3 class="queue-section-title">⏳ Waiting Queue (<span id="queue-count">0</span>)</h3>
+          <span class="queue-subtext">Waiting users get admitted by Moderators when a stage slot opens</span>
+        </div>
+
+        <!-- Waiting Queue User Personal Action Panel (Only shown when user is in queue) -->
+        <div id="queue-action-panel" class="queue-action-panel" style="display: none;">
+          <div class="queue-panel-content">
+            <div class="queue-status-text">
+              <span class="pulse-icon">⏳</span>
+              <div>
+                <strong>You are in the Waiting Queue</strong>
+                <p id="wait-timer-display" style="font-size: 0.75rem; color: var(--text-secondary); margin: 0;">Waiting
+                  time: 0s</p>
+              </div>
+            </div>
+
+            <div class="queue-actions-row">
+              <button id="btn-queue-raise-hand" class="btn btn-secondary btn-pill"
+                style="font-size: 0.8rem; font-weight: 700;">
+                ✋ Raise Hand
+              </button>
+              <button id="btn-open-comment-modal" class="btn btn-secondary btn-pill"
+                style="font-size: 0.8rem; font-weight: 700;">
+                💬 Quick Comment
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Queue Users Grid -->
+        <div id="queue-grid" class="queue-grid">
+          <!-- Rendered dynamically by room.js -->
+        </div>
+      </div>
+
+      <!-- Simple Clean In-Page Room Controls Bar -->
+      <div class="room-controls-bar">
+        <button id="btn-raise-hand" class="btn btn-secondary btn-pill"
+          style="padding: 0.55rem 1.15rem; font-size: 0.85rem; font-weight: 700;">
+          ✋ Raise Hand
+        </button>
+
+        <div class="mic-button-container">
+          <button id="mic-button" class="mic-button" aria-label="Toggle Mute/Unmute" title="Click to Mute/Unmute">
+            <span id="mic-icon-container">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+                <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path>
+                <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+              </svg>
+            </span>
+          </button>
+        </div>
+
+        <button id="btn-report-room" class="btn btn-secondary btn-pill"
+          style="padding: 0.55rem 1.15rem; font-size: 0.85rem; font-weight: 700;">
+          Exit Room
+        </button>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Persistent Mic Permission Modal -->
+  <div id="permission-modal" class="modal-backdrop">
+    <div class="modal-content" style="text-align: center; max-width: 380px;">
+      <span style="font-size: 2.25rem; display: block; margin-bottom: 0.5rem;">🎙️</span>
+      <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Microphone Permission</h3>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+        CockroachTalk requires microphone access for real-time WebRTC voice communication.
+      </p>
+      <button id="btn-grant-permission" class="btn btn-gold btn-pill" style="width: 100%; justify-content: center;">
+        Grant Microphone Access ✦
+      </button>
+    </div>
+  </div>
+
+  <!-- Speaker Profile & Moderation Action Modal -->
+  <div id="profile-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="profile-modal-name">
+    <div class="modal-content profile-modal-content">
+      <button id="profile-modal-close" class="modal-close-btn" aria-label="Close modal">✕</button>
+
+      <div class="profile-modal-header">
+        <div id="profile-modal-avatar-container" class="profile-modal-avatar-wrap"></div>
+        <div class="profile-modal-identity">
+          <h3 id="profile-modal-name" class="profile-modal-name">Speaker Handle</h3>
+          <div id="profile-modal-status-pill" class="profile-modal-status-pill"></div>
+        </div>
+      </div>
+
+      <div class="profile-modal-body">
+        <!-- Moderation Info Box -->
+        <div class="profile-info-card">
+          <div class="profile-info-header">
+            <svg class="cockroach-header-icon" viewBox="0 0 24 24" width="16" height="16" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v3M8 3.5l1.5 2.5M16 3.5l-1.5 2.5" />
+              <ellipse cx="12" cy="13" rx="4.5" ry="6.5" fill="rgba(212, 160, 23, 0.25)" />
+              <path d="M7.5 10H3M16.5 10H21M7 13.5H2.5M17 13.5H21.5M7.5 17L4.5 19.5M16.5 17l3 2.5" />
+              <line x1="12" y1="6.5" x2="12" y2="19.5" />
+            </svg>
+            <span class="info-title">Stage Moderation & Removals</span>
+          </div>
+          <p class="profile-info-desc">
+            Active stage debaters are <strong>Stage Moderators</strong> with authority to admit waiting users when a
+            stage slot opens and remove stage members.
+          </p>
+        </div>
+
+        <!-- Quota & Action Details -->
+        <div id="profile-modal-action-box" class="profile-action-box"></div>
+      </div>
+
+      <div class="profile-modal-footer">
+        <button id="btn-close-profile-modal" class="btn btn-secondary btn-pill"
+          style="width: 100%; justify-content: center;">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dedicated Admit Participant Modal for Stage Moderators -->
+  <div id="admit-user-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="admit-modal-title">
+    <div class="modal-content profile-modal-content" style="max-width: 420px; text-align: center;">
+      <button id="admit-modal-close" class="modal-close-btn" aria-label="Close modal">✕</button>
+
+      <div style="font-size: 2.2rem; margin-bottom: 0.35rem;">🎙️</div>
+      <h3 id="admit-modal-title"
+        style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.25rem;">
+        Admit Participant to Stage
+      </h3>
+      <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
+        As a Stage Moderator, you have authority to admit this waiting participant to the live active stage.
+      </p>
+
+      <div
+        style="background: rgba(212, 160, 23, 0.08); border: 1px solid rgba(212, 160, 23, 0.25); border-radius: 16px; padding: 1rem; margin-bottom: 1.25rem; text-align: left;">
+        <div style="display: flex; align-items: center; gap: 0.85rem;">
+          <div id="admit-modal-avatar" class="avatar avatar-md avatar-gender-skip">C</div>
+          <div>
+            <div id="admit-modal-username" style="font-weight: 800; font-size: 1rem; color: var(--text-primary);">
+              Cockroach #1007</div>
+            <div id="admit-modal-waittime"
+              style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 700; margin-top: 0.15rem;">⏳ Waiting:
+              02m 15s</div>
+          </div>
+        </div>
+        <div id="admit-modal-comment-container"
+          style="display: none; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.55rem 0.85rem; border-radius: 10px; font-size: 0.8rem; color: var(--text-primary); margin-top: 0.75rem;">
+          <span
+            style="color: var(--accent-gold); font-weight: 800; font-size: 0.75rem; display: block; margin-bottom: 0.2rem;">💬
+            Quick Comment:</span>
+          <span id="admit-modal-comment-text">""</span>
+        </div>
+      </div>
+
+      <button id="btn-admit-user-confirm" class="btn btn-gold btn-pill"
+        style="width: 100%; justify-content: center; font-weight: 800; font-size: 0.95rem; padding: 0.75rem 1.25rem; box-shadow: 0 4px 18px rgba(212, 160, 23, 0.35);">
+        + Admit to Active Stage
+      </button>
+    </div>
+  </div>
+
+  <!-- Quick Comment Popup Modal -->
+  <div id="quick-comment-modal" class="modal-backdrop" role="dialog" aria-modal="true"
+    aria-labelledby="comment-modal-title">
+    <div class="modal-content comment-modal-content">
+      <button id="comment-modal-close" class="modal-close-btn" aria-label="Close modal">✕</button>
+
+      <div class="comment-modal-header">
+        <span class="comment-modal-icon">💬</span>
+        <h4 id="comment-modal-title" class="comment-modal-title">Quick Comment</h4>
+      </div>
+
+      <div class="comment-modal-body">
+        <p class="comment-modal-desc">
+          Convey a short note (max 30 characters) to stage moderators while waiting in queue.
+        </p>
+
+        <div id="comment-modal-status-area" class="comment-modal-status-area">
+          <!-- Dynamic Form / Lock Timer / Submitted Comment -->
+        </div>
+      </div>
+
+      <div class="comment-modal-footer">
+        <button id="btn-close-comment-modal" class="btn btn-secondary btn-pill btn-sm"
+          style="width: 100%; justify-content: center; font-size: 0.78rem;">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+
+</body>
+
+</html>

@@ -1,0 +1,100 @@
+/**
+ * CockroachTalk - Theme Design Tokens
+ * File Responsibility: Color tokens, CSS variables, dark/light themes, typography scales, glassmorphism, depth tokens.
+ */
+
+:root {
+  /* Primary Color Palette (Roach Pulse) */
+  --bg-dark: #0d0b08;
+  --bg-primary: #120f0c;
+  --bg-secondary: #1a1612;
+  --bg-elevated: #241e18;
+  --bg-glass: rgba(18, 15, 12, 0.75);
+  --bg-glass-card: rgba(26, 22, 18, 0.65);
+
+  /* Chitin & Gold Accent Tokens */
+  --accent-gold: #d4a017;
+  --accent-gold-hover: #e5b324;
+  --accent-gold-glow: rgba(212, 160, 23, 0.25);
+  
+  --accent-chitin: #a0522d;
+  --accent-chitin-hover: #b86237;
+  --accent-chitin-glow: rgba(160, 82, 45, 0.3);
+
+  --accent-moss: #4a5d23;
+  --accent-purple: #9b51e0;
+
+  /* Gender Identity Accents */
+  --male: #3b82f6;
+  --female: #ec4899;
+  --nonbinary: #8b5cf6;
+
+  /* Text & Neutral Tokens */
+  --text-primary: #f5f2eb;
+  --text-secondary: #c5beaf;
+  --text-muted: #8c8373;
+  --text-inverse: #0d0b08;
+
+  /* Border & Glow Tokens */
+  --border-subtle: rgba(212, 160, 23, 0.12);
+  --border-glow: rgba(212, 160, 23, 0.35);
+  --border-active: #d4a017;
+
+  /* Shadow Tokens */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-glow-gold: 0 0 24px rgba(212, 160, 23, 0.2);
+  --shadow-glow-chitin: 0 0 24px rgba(160, 82, 45, 0.25);
+
+  /* Typography Scales (Google Fonts Outfit + Plus Jakarta Sans) */
+  --font-family-heading: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.35rem;
+  --font-size-2xl: 1.75rem;
+  --font-size-3xl: 2.25rem;
+  --font-size-4xl: 3rem;
+
+  /* Radius Tokens */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-card: 24px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* Layout Containers */
+  --header-height: 72px;
+  --container-max-width: 1240px;
+}
+
+/* Light Theme Override Token Mapping */
+[data-theme="light"] {
+  --bg-dark: #f5f2eb;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f0ebe1;
+  --bg-elevated: #e6dfd1;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --bg-glass-card: rgba(240, 235, 225, 0.75);
+
+  --text-primary: #1c1812;
+  --text-secondary: #4a4235;
+  --text-muted: #786e5c;
+  --text-inverse: #ffffff;
+
+  --border-subtle: rgba(160, 82, 45, 0.15);
+  --border-glow: rgba(160, 82, 45, 0.35);
+  
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+}

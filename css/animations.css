@@ -1,0 +1,63 @@
+/**
+ * CockroachTalk - Animations Stylesheet
+ * File Responsibility: Keyframes for pulse glows, skeleton shimmers, micro-interaction scale transitions.
+ */
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+}
+
+@keyframes speakingGlow {
+  0% {
+    box-shadow: 0 0 0 3px var(--accent-gold-glow), 0 0 16px var(--accent-gold);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 0 8px rgba(212, 160, 23, 0.4), 0 0 32px var(--accent-gold);
+    transform: scale(1.06);
+  }
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-elevated) 50%, var(--bg-secondary) 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.6s infinite ease-in-out;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-text {
+  height: 1rem;
+  width: 70%;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-title {
+  height: 1.5rem;
+  width: 85%;
+  margin-bottom: 0.75rem;
+}
+
+.skeleton-card {
+  height: 280px;
+  border-radius: var(--radius-card);
+}

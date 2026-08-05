@@ -1,0 +1,1137 @@
+/**
+ * CockroachTalk - Live Voice Room Page Controller
+ * File Responsibility: Junction Debate Waiting Queue & Room Entry System (State updates, Moderator powers, Seniority removal authority, Quick Comment, Toasts).
+ */
+
+import { WebRTCStub } from '../webrtcStub.js';
+import { storage } from '../utils/storage.js';
+import { ICONS } from '../utils/icons.js';
+import { escapeHTML } from '../utils/dom.js';
+
+/**
+ * Formats user handle into compact Co...#1011 style.
+ */
+function formatCompactHandle(name, tag) {
+  if (tag) return `Co..#${tag}`;
+  if (!name) return 'C..#1001';
+  if (name.includes('#')) {
+    const parts = name.split('#');
+    return `Co..#${parts[1] || '1001'}`;
+  }
+  if (name.length > 10) {
+    return `${name.substring(0, 4)}...`;
+  }
+  return name;
+}
+
+/**
+ * Formats milliseconds into exact mm:ss per second (e.g. 04:12)
+ */
+function formatTimeMS(ms) {
+  if (!ms || ms < 0) return '00:00';
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  const padMin = String(min).padStart(2, '0');
+  const padSec = String(sec).padStart(2, '0');
+  return `${padMin}:${padSec}`;
+}
+
+/**
+ * Formats milliseconds into human readable time (e.g. 45s or 03m 12s)
+ */
+function formatWaitTime(ms) {
+  if (!ms || ms < 0) return '0s';
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  if (min === 0) return `${sec}s`;
+  return `${String(min).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`;
+}
+
+/**
+ * Displays animated non-intrusive Toast Notification
+ */
+function showToast(message) {
+  const toastContainer = document.getElementById('toast-container');
+  if (!toastContainer) return;
+
+  const toast = document.createElement('div');
+  toast.className = 'toast-message';
+  toast.innerHTML = `<span>🛡️</span> <span>${escapeHTML(message)}</span>`;
+  toastContainer.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.4s ease';
+    setTimeout(() => toast.remove(), 400);
+  }, 4000);
+}
+
+// Global top-level helper for direct inline onclick on admit button
+window.__handleAdmitClick = function (btnEl, event) {
+  if (event) {
+    try { event.preventDefault(); event.stopPropagation(); } catch (e) { }
+  }
+  console.log('🚀 [Admit] window.__handleAdmitClick triggered!', btnEl);
+
+  if (!btnEl) {
+    console.warn('[Admit] No button element provided');
+    return;
+  }
+
+  let tag = btnEl.getAttribute('data-admit-tag');
+  let socketId = btnEl.getAttribute('data-admit-socket');
+
+  if (!tag && btnEl.textContent) {
+    const match = btnEl.textContent.match(/#(\d+)/);
+    if (match) tag = match[1];
+  }
+
+  const roomState = window._currentRoomState;
+  if (roomState && roomState.waitingQueue) {
+    const live = roomState.waitingQueue.find(q =>
+      (tag && String(q.tag) === String(tag)) ||
+      (socketId && q.socketId === socketId)
+    );
+    if (live) {
+      tag = String(live.tag);
+      socketId = live.socketId || socketId;
+    }
+  }
+
+  console.log(`[Admit] Emitting admit-user to server: socketId=${socketId}, tag=${tag}`);
+
+  btnEl.textContent = '⏳ Admitting...';
+  btnEl.disabled = true;
+
+  WebRTCStub.admitUser(socketId, tag);
+
+  setTimeout(() => {
+    const profileModal = document.getElementById('profile-modal');
+    if (profileModal) profileModal.classList.remove('active');
+  }, 200);
+};
+
+// Capture-phase document-level click listener (fires before any child propagation stops)
+document.addEventListener('click', (e) => {
+  const admitBtn = e.target && e.target.closest && e.target.closest('#btn-execute-admit-modal');
+  if (admitBtn) {
+    console.log('🚀 [Admit] document capture-phase click caught!', admitBtn);
+    window.__handleAdmitClick(admitBtn, e);
+  }
+}, true);
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const userProfile = await storage.ensureUserProfile();
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const roomId = urlParams.get('id') || 'maharashtra';
+
+  // Mark this session as actively in this junction room (cross-tab via localStorage)
+  const formattedRoomNameForStorage = roomId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Cockroach';
+  storage.setActiveJunction(roomId, formattedRoomNameForStorage);
+
+  // Heartbeat: refresh the timestamp every 5 minutes so the 30-min expiry stays alive
+  const _junctionHeartbeat = setInterval(() => {
+    storage.setActiveJunction(roomId, formattedRoomNameForStorage);
+  }, 5 * 60 * 1000);
+
+  // UI Elements
+  const roomTitleEl = document.getElementById('room-title');
+  const roomTopicEl = document.getElementById('room-topic');
+  const listenerCountEl = document.getElementById('room-listener-count');
+  const stageCapacityBadge = document.getElementById('stage-capacity-badge');
+  const seniorModIndicator = document.getElementById('senior-mod-indicator');
+  const stageModStatsEl = document.getElementById('stage-mod-stats');
+
+  const stageGrid = document.getElementById('stage-grid');
+  const queueGrid = document.getElementById('queue-grid');
+  const queueCountEl = document.getElementById('queue-count');
+  const queueActionPanel = document.getElementById('queue-action-panel');
+  const waitTimerDisplay = document.getElementById('wait-timer-display');
+  const btnQueueRaiseHand = document.getElementById('btn-queue-raise-hand');
+
+  const quickCommentLock = document.getElementById('quick-comment-lock');
+  const quickCommentForm = document.getElementById('quick-comment-form');
+  const inputQuickComment = document.getElementById('input-quick-comment');
+  const quickCommentSent = document.getElementById('quick-comment-sent');
+
+  const micButton = document.getElementById('mic-button');
+  const micIconContainer = document.getElementById('mic-icon-container');
+  const btnRaiseHand = document.getElementById('btn-raise-hand');
+  const btnReport = document.getElementById('btn-report-room');
+
+  const permModal = document.getElementById('permission-modal');
+  const btnGrantPerm = document.getElementById('btn-grant-permission');
+
+  const profileModal = document.getElementById('profile-modal');
+  const btnCloseProfileModal = document.getElementById('btn-close-profile-modal');
+  const btnProfileModalClose = document.getElementById('profile-modal-close');
+
+  const quickCommentModal = document.getElementById('quick-comment-modal');
+  const btnOpenCommentModal = document.getElementById('btn-open-comment-modal');
+  const btnCloseCommentModal = document.getElementById('btn-close-comment-modal');
+  const commentModalClose = document.getElementById('comment-modal-close');
+
+  const admitUserModal = document.getElementById('admit-user-modal');
+  const admitModalClose = document.getElementById('admit-modal-close');
+  const btnAdmitUserConfirm = document.getElementById('btn-admit-user-confirm');
+
+  function closeProfileModal() {
+    if (profileModal) profileModal.classList.remove('active');
+  }
+
+  function closeQuickCommentModal() {
+    if (quickCommentModal) quickCommentModal.classList.remove('active');
+  }
+
+  function closeAdmitModal() {
+    if (admitUserModal) admitUserModal.classList.remove('active');
+  }
+
+  if (btnCloseProfileModal) btnCloseProfileModal.addEventListener('click', closeProfileModal);
+  if (btnProfileModalClose) btnProfileModalClose.addEventListener('click', closeProfileModal);
+
+  if (admitModalClose) admitModalClose.addEventListener('click', closeAdmitModal);
+  if (admitUserModal) {
+    admitUserModal.addEventListener('click', (e) => {
+      if (e.target === admitUserModal) closeAdmitModal();
+    });
+  }
+
+  function openAdmitUserModal(targetUser) {
+    const modal = admitUserModal || document.getElementById('admit-user-modal');
+    if (!modal) {
+      console.warn('[Admit Modal] #admit-user-modal element not found in DOM!');
+      openQueueUserModal(targetUser, true);
+      return;
+    }
+
+    const avatarEl = document.getElementById('admit-modal-avatar');
+    const nameEl = document.getElementById('admit-modal-username');
+    const waitEl = document.getElementById('admit-modal-waittime');
+    const commentWrap = document.getElementById('admit-modal-comment-container');
+    const commentText = document.getElementById('admit-modal-comment-text');
+    const confirmBtn = btnAdmitUserConfirm || document.getElementById('btn-admit-user-confirm');
+
+    const genderClass = `avatar-gender-${targetUser.gender || 'skip'}`;
+    const initial = (targetUser.name || 'C').charAt(0).toUpperCase();
+    const compactDisplayName = formatCompactHandle(targetUser.name, targetUser.tag);
+    const waitTimeText = formatWaitTime(targetUser.waitTimeMs);
+
+    if (avatarEl) {
+      avatarEl.className = `avatar avatar-md ${genderClass}`;
+      avatarEl.textContent = initial;
+    }
+    if (nameEl) nameEl.textContent = compactDisplayName;
+    if (waitEl) waitEl.textContent = `⏳ Waiting: ${waitTimeText}`;
+
+    if (commentWrap && commentText) {
+      if (targetUser.quickComment) {
+        commentText.textContent = `"${targetUser.quickComment}"`;
+        commentWrap.style.display = 'block';
+      } else {
+        commentWrap.style.display = 'none';
+      }
+    }
+
+    if (confirmBtn) {
+      confirmBtn.setAttribute('data-target-socket', targetUser.socketId || '');
+      confirmBtn.setAttribute('data-target-tag', String(targetUser.tag || ''));
+      confirmBtn.textContent = `+ Admit ${compactDisplayName} to Active Stage`;
+      confirmBtn.disabled = false;
+    }
+
+    modal.classList.add('active');
+  }
+
+  if (btnAdmitUserConfirm) {
+    btnAdmitUserConfirm.addEventListener('click', () => {
+      let socketId = btnAdmitUserConfirm.getAttribute('data-target-socket');
+      let tag = btnAdmitUserConfirm.getAttribute('data-target-tag');
+
+      const roomState = currentRoomState || window._currentRoomState;
+      if (roomState && roomState.waitingQueue) {
+        const liveUser = roomState.waitingQueue.find(q =>
+          (tag && String(q.tag) === String(tag)) ||
+          (socketId && q.socketId === socketId)
+        );
+        if (liveUser) {
+          socketId = liveUser.socketId || socketId;
+          tag = String(liveUser.tag);
+        }
+      }
+
+      console.log(`[Admit Confirm Clicked] Admitting user: socketId=${socketId}, tag=${tag}`);
+
+      btnAdmitUserConfirm.textContent = '⏳ Admitting...';
+      btnAdmitUserConfirm.disabled = true;
+
+      WebRTCStub.admitUser(socketId, tag);
+
+      setTimeout(() => {
+        closeAdmitModal();
+      }, 200);
+    });
+  }
+
+  // Single delegated click handler on the profile modal — handles ALL dynamic buttons inside
+  if (profileModal) {
+    profileModal.addEventListener('click', (e) => {
+      // Close on backdrop click
+      if (e.target === profileModal) {
+        closeProfileModal();
+        return;
+      }
+
+      // Admit button inside queue user modal
+      const admitBtn = e.target.closest('#btn-execute-admit-modal');
+      if (admitBtn) {
+        e.stopPropagation();
+        const tag = admitBtn.getAttribute('data-admit-tag');
+        const socketId = admitBtn.getAttribute('data-admit-socket');
+
+        // Get freshest data from live room state
+        let resolvedTag = tag;
+        let resolvedSocket = socketId;
+        if (currentRoomState && currentRoomState.waitingQueue) {
+          const live = currentRoomState.waitingQueue.find(q =>
+            (tag && String(q.tag) === String(tag)) ||
+            (socketId && q.socketId === socketId)
+          );
+          if (live) {
+            resolvedTag = String(live.tag);
+            resolvedSocket = live.socketId;
+          }
+        }
+
+        console.log('[Admit] delegated click! resolvedTag=', resolvedTag, 'resolvedSocket=', resolvedSocket);
+        console.log('[Admit] socket connected=', WebRTCStub.socket?.connected, 'socketId=', WebRTCStub.socket?.id);
+
+        if (WebRTCStub.socket && WebRTCStub.socket.connected) {
+          WebRTCStub.socket.emit('admit-user', { targetSocketId: resolvedSocket, targetTag: resolvedTag });
+          closeProfileModal();
+        } else {
+          showToast('⚠️ Not connected to server. Please refresh the page.');
+        }
+        return;
+      }
+
+      // Remove button inside active stage profile modal
+      const removeBtn = e.target.closest('#btn-execute-remove');
+      if (removeBtn) {
+        e.stopPropagation();
+        const targetId = removeBtn.getAttribute('data-socket-id');
+        const targetTag = removeBtn.getAttribute('data-target-tag');
+        if (targetId || targetTag) {
+          WebRTCStub.removeUser(targetId, targetTag);
+          closeProfileModal();
+        }
+        return;
+      }
+
+      // Comment button inside queue user modal
+      const commentBtn = e.target.closest('#btn-modal-open-comment');
+      if (commentBtn) {
+        e.stopPropagation();
+        closeProfileModal();
+        openQuickCommentModal();
+        return;
+      }
+    });
+  }
+
+  if (btnCloseCommentModal) btnCloseCommentModal.addEventListener('click', closeQuickCommentModal);
+  if (commentModalClose) commentModalClose.addEventListener('click', closeQuickCommentModal);
+  if (quickCommentModal) {
+    quickCommentModal.addEventListener('click', (e) => {
+      if (e.target === quickCommentModal) closeQuickCommentModal();
+    });
+  }
+
+  if (btnOpenCommentModal) {
+    btnOpenCommentModal.addEventListener('click', () => {
+      openQuickCommentModal();
+    });
+  }
+
+  function openQuickCommentModal() {
+    const modal = quickCommentModal || document.getElementById('quick-comment-modal');
+    if (!modal) return;
+    updateQuickCommentModalContent(true);
+    modal.classList.add('active');
+
+    // Focus input field immediately so user can type cleanly
+    setTimeout(() => {
+      const inputModal = document.getElementById('input-quick-comment-modal');
+      if (inputModal) inputModal.focus();
+    }, 50);
+  }
+
+  function updateQuickCommentModalContent(force = false) {
+    const statusArea = document.getElementById('comment-modal-status-area');
+    if (!statusArea) return;
+
+    const activeMembers = (currentRoomState && currentRoomState.activeMembers) || [];
+    const waitingQueue = (currentRoomState && currentRoomState.waitingQueue) || [];
+
+    const selfMember = activeMembers.find(m => m.socketId === currentSelfSocketId || String(m.tag) === String(userProfile?.tag)) ||
+      waitingQueue.find(q => q.socketId === currentSelfSocketId || String(q.tag) === String(userProfile?.tag));
+
+    if (selfMember && selfMember.commentUsed) {
+      statusArea.innerHTML = `
+        <div class="comment-submitted-tag">
+          <span style="font-size: 0.72rem; color: #10b981;">💬 Comment Submitted:</span>
+          <strong style="color: var(--accent-gold); font-size: 0.82rem;">"${escapeHTML(selfMember.quickComment)}"</strong>
+        </div>
+      `;
+    } else {
+      // If form is already rendered, do NOT overwrite it (preserves user typing focus)
+      const existingForm = statusArea.querySelector('#quick-comment-modal-form');
+      if (existingForm && !force) return;
+
+      statusArea.innerHTML = `
+        <form id="quick-comment-modal-form" class="comment-modal-form">
+          <input type="text" id="input-quick-comment-modal" maxlength="30" placeholder="Type quick comment (max 30 chars)..." class="comment-modal-input" required autocomplete="off">
+          <button type="submit" class="btn btn-gold btn-pill btn-sm" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;">Send</button>
+        </form>
+      `;
+
+      const formModal = statusArea.querySelector('#quick-comment-modal-form');
+      const inputModal = statusArea.querySelector('#input-quick-comment-modal');
+
+      if (formModal && inputModal) {
+        formModal.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const comment = inputModal.value.trim();
+          if (comment) {
+            WebRTCStub.submitQuickComment(comment);
+            closeQuickCommentModal();
+          }
+        });
+      }
+    }
+  }
+
+  function openProfileModal(targetMember, activeMembers, seniorModSocketId, selfMember) {
+    if (!profileModal) return;
+
+    const isSelf = (targetMember.socketId === currentSelfSocketId || targetMember.tag === userProfile.tag);
+    const isSelfMod = selfMember && selfMember.isModerator;
+    const canRemoveTarget = isSelfMod && !isSelf;
+
+    const genderClass = `avatar-gender-${targetMember.gender || 'skip'}`;
+    const speakingClass = targetMember.isSpeaking ? 'avatar-speaking' : '';
+    const initial = (targetMember.name || 'C').charAt(0).toUpperCase();
+    const compactDisplayName = formatCompactHandle(targetMember.name, targetMember.tag);
+
+    const micStatusClass = targetMember.isSpeaking ? 'speaking' : (targetMember.isMuted ? 'muted' : 'unmuted');
+    const micStatusLabel = targetMember.isSpeaking ? '⚡ Speaking Live' : (targetMember.isMuted ? '🎙️ Muted' : '🟢 Open Mic');
+
+    const avatarWrap = document.getElementById('profile-modal-avatar-container');
+    if (avatarWrap) {
+      avatarWrap.innerHTML = `
+        <div class="avatar avatar-lg ${genderClass} ${speakingClass}">
+          ${escapeHTML(initial)}
+          
+          ${targetMember.isModerator ? `
+            <div class="avatar-mod-badge" title="Stage Moderator (10+ min on stage, max 4)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v3M8 3.5l1.5 2.5M16 3.5l-1.5 2.5"/>
+                <ellipse cx="12" cy="13" rx="4.5" ry="6.5" fill="rgba(255, 255, 255, 0.3)"/>
+                <path d="M7.5 10H3M16.5 10H21M7 13.5H2.5M17 13.5H21.5M7.5 17L4.5 19.5M16.5 17l3 2.5"/>
+                <line x1="12" y1="6.5" x2="12" y2="19.5"/>
+              </svg>
+            </div>
+          ` : ''}
+
+          <div class="avatar-mic-badge ${micStatusClass}" title="${micStatusLabel}">
+            ${targetMember.isSpeaking ? `
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
+              </svg>
+            ` : (targetMember.isMuted ? `
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="2" y1="2" x2="22" y2="22"></line>
+                <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"></path>
+                <path d="M5 10v2a7 7 0 0 0 12 5.59"></path>
+                <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"></path>
+                <path d="M9 9v3a3 3 0 0 0 5.12 2.12"></path>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
+              </svg>
+            ` : `
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
+              </svg>
+            `)}
+          </div>
+        </div>
+      `;
+    }
+
+    const nameEl = document.getElementById('profile-modal-name');
+    if (nameEl) nameEl.textContent = compactDisplayName + (isSelf ? ' 👤' : '');
+
+    const cockroachSVG = `
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 3px; vertical-align: text-bottom;">
+        <path d="M12 2v3M8 3.5l1.5 2.5M16 3.5l-1.5 2.5"/>
+        <ellipse cx="12" cy="13" rx="4.5" ry="6.5" fill="rgba(212, 160, 23, 0.3)"/>
+        <path d="M7.5 10H3M16.5 10H21M7 13.5H2.5M17 13.5H21.5M7.5 17L4.5 19.5M16.5 17l3 2.5"/>
+        <line x1="12" y1="6.5" x2="12" y2="19.5"/>
+      </svg>
+    `;
+
+    const boltSVG = `
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="margin-right: 2px; vertical-align: text-bottom; color: #f59e0b;">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+      </svg>
+    `;
+
+    const statusPillEl = document.getElementById('profile-modal-status-pill');
+    if (statusPillEl) {
+      statusPillEl.innerHTML = `
+        <span style="color: var(--text-secondary);">${micStatusLabel}</span>
+        <span>•</span>
+        <span style="color: var(--accent-gold); font-weight: 800;">${targetMember.isModerator ? (cockroachSVG + 'Moderator Cockroach') : 'Stage Debater'}</span>
+      `;
+    }
+
+    const actionBox = document.getElementById('profile-modal-action-box');
+    if (actionBox) {
+      let actionHTML = '';
+
+      if (isSelf) {
+        actionHTML = `
+          <div style="font-size: 0.78rem; color: var(--accent-gold); font-weight: 700; text-align: center;">
+            ${selfMember && selfMember.isModerator ? '👑 You are a Stage Moderator' : '🎙️ You are a Stage Debater (Mod status after 10m on stage)'}
+          </div>
+        `;
+      } else if (isSelfMod) {
+        if (canRemoveTarget) {
+          // data-target-tag used by delegated modal click handler
+          actionHTML = `
+            <button id="btn-execute-remove" class="btn-remove-modal"
+              data-socket-id="${escapeHTML(targetMember.socketId)}"
+              data-target-tag="${escapeHTML(String(targetMember.tag || ''))}">
+              ✕ Remove ${escapeHTML(targetMember.name || 'User')} to Queue
+            </button>
+          `;
+        }
+      } else {
+        actionHTML = `
+          <div style="font-size: 0.78rem; color: var(--text-muted); text-align: center;">
+            ℹ️ Waiting Queue user (Listen only).
+          </div>
+        `;
+      }
+
+      if (actionHTML.trim()) {
+        actionBox.style.display = 'block';
+        actionBox.innerHTML = actionHTML;
+      } else {
+        actionBox.style.display = 'none';
+      }
+      // Button clicks handled by delegated listener on profileModal
+    }
+
+    profileModal.classList.add('active');
+  }
+
+  // Inside DOMContentLoaded: setup room variables
+
+  function openQueueUserModal(targetUser, isSelfMod) {
+    const modal = profileModal || document.getElementById('profile-modal');
+    if (!modal) return;
+
+    const isSelf = (targetUser.socketId === currentSelfSocketId || (targetUser.tag && String(targetUser.tag) === String(userProfile?.tag)));
+    const genderClass = `avatar-gender-${targetUser.gender || 'skip'}`;
+    const initial = (targetUser.name || 'C').charAt(0).toUpperCase();
+    const compactDisplayName = formatCompactHandle(targetUser.name, targetUser.tag);
+    const waitTimeText = formatWaitTime(targetUser.waitTimeMs);
+
+    const avatarWrap = document.getElementById('profile-modal-avatar-container');
+    if (avatarWrap) {
+      avatarWrap.innerHTML = `
+        <div class="avatar avatar-lg ${genderClass}">
+          ${escapeHTML(initial)}
+          <div class="avatar-mic-badge muted" title="Muted in Queue">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="2" y1="2" x2="22" y2="22"></line>
+              <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"></path>
+              <path d="M5 10v2a7 7 0 0 0 12 5.59"></path>
+              <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"></path>
+              <path d="M9 9v3a3 3 0 0 0 5.12 2.12"></path>
+              <line x1="12" y1="19" x2="12" y2="22"></line>
+            </svg>
+          </div>
+        </div>
+      `;
+    }
+
+    const nameEl = document.getElementById('profile-modal-name');
+    if (nameEl) nameEl.textContent = compactDisplayName + (isSelf ? ' 👤' : '');
+
+    const statusPillEl = document.getElementById('profile-modal-status-pill');
+    if (statusPillEl) {
+      statusPillEl.innerHTML = `
+        <span style="color: var(--text-secondary);">⏳ Waiting in Queue</span>
+        <span>•</span>
+        <span style="color: var(--accent-gold); font-weight: 700;">Wait: ${waitTimeText}</span>
+      `;
+    }
+
+    const actionBox = document.getElementById('profile-modal-action-box');
+    if (actionBox) {
+      let actionHTML = '';
+
+      if (targetUser.quickComment) {
+        actionHTML += `
+          <div style="background: rgba(212, 160, 23, 0.1); border: 1px solid rgba(212, 160, 23, 0.25); padding: 0.65rem 0.85rem; border-radius: 12px; margin-bottom: 0.85rem; text-align: left;">
+            <span style="color: var(--accent-gold); font-size: 0.75rem; font-weight: 800; display: block; margin-bottom: 0.2rem;">💬 Quick Comment:</span>
+            <span style="font-size: 0.82rem; color: var(--text-primary); font-weight: 600;">"${escapeHTML(targetUser.quickComment)}"</span>
+          </div>
+        `;
+      }
+
+      if (targetUser.raisedHand) {
+        actionHTML += `
+          <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-subtle); padding: 0.4rem 0.75rem; border-radius: 8px; margin-bottom: 0.85rem; font-size: 0.78rem; color: var(--accent-gold); font-weight: 700; text-align: center;">
+            ✋ Hand Raised
+          </div>
+        `;
+      }
+
+      if (isSelfMod && !isSelf) {
+        actionHTML += `
+          <button
+            id="btn-execute-admit-modal"
+            class="btn btn-gold btn-pill"
+            data-admit-tag="${escapeHTML(String(targetUser.tag || ''))}"
+            data-admit-socket="${escapeHTML(targetUser.socketId || '')}"
+            onclick="window.__handleAdmitClick && window.__handleAdmitClick(this, event)"
+            style="width: 100%; justify-content: center; font-weight: 800; font-size: 0.88rem; padding: 0.65rem 1rem; cursor: pointer; pointer-events: all; position: relative; z-index: 999;">
+            + Admit ${escapeHTML(targetUser.name || 'User')} to Active Stage
+          </button>
+        `;
+      } else if (isSelf) {
+        actionHTML += `
+          <button id="btn-modal-open-comment" class="btn btn-secondary btn-pill" style="width: 100%; justify-content: center; font-size: 0.8rem; font-weight: 700; margin-top: 0.35rem;">
+            💬 Add / Edit Quick Comment
+          </button>
+        `;
+      } else if (!isSelfMod) {
+        actionHTML += `
+          <div style="font-size: 0.78rem; color: var(--text-muted); text-align: center;">
+            ℹ️ Waiting Queue participant (Listen only).
+          </div>
+        `;
+      }
+
+      actionBox.style.display = 'block';
+      actionBox.innerHTML = actionHTML;
+
+      // Direct listener attached right after innerHTML
+      const btnExec = document.getElementById('btn-execute-admit-modal');
+      if (btnExec) {
+        btnExec.onclick = function (e) {
+          window.__handleAdmitClick(this, e);
+        };
+      }
+    }
+
+    profileModal.classList.add('active');
+  }
+
+  let isMuted = true;
+  let currentRoomState = null;
+  let currentSelfSocketId = null;
+
+  // Format room header text
+  const formattedRoomName = roomId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Cockroach';
+  if (roomTitleEl) roomTitleEl.textContent = formattedRoomName;
+  if (roomTopicEl) roomTopicEl.textContent = `Live ${formattedRoomName} debate junction & community stage`;
+
+  // Render Stage Grid (Active Debaters up to 8)
+  function renderStageGrid(activeMembers, seniorModSocketId, selfMember) {
+    if (!stageGrid) return;
+    stageGrid.innerHTML = '';
+
+    if (!Array.isArray(activeMembers) || activeMembers.length === 0) {
+      stageGrid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 1.5rem 1rem;">
+          🎙️ No debaters currently on stage. Waiting queue members get admitted by Moderators when a slot opens!
+        </div>
+      `;
+      return;
+    }
+
+    const isSelfMod = selfMember && selfMember.isModerator;
+    const selfRemovalsLeft = selfMember ? selfMember.removalsRemaining : 0;
+    const isFullRoom = activeMembers.length >= 2;
+
+    activeMembers.forEach(member => {
+      const slot = document.createElement('div');
+      slot.className = 'spaces-speaker-chip';
+      slot.style.cursor = 'pointer';
+      slot.setAttribute('title', `Click to view ${escapeHTML(member.name)}'s profile & moderation options`);
+
+      const isSelf = (member.socketId === currentSelfSocketId || String(member.tag) === String(userProfile?.tag));
+      const speakingClass = member.isSpeaking ? 'avatar-speaking' : '';
+      const genderClass = `avatar-gender-${member.gender || 'skip'}`;
+      const selfTag = isSelf ? ' <span class="self-icon-badge" title="Your Account">👤</span>' : '';
+      const initial = (member.name || 'C').charAt(0).toUpperCase();
+
+      const compactDisplayName = formatCompactHandle(member.name, member.tag);
+      const isSeniorLead = isFullRoom && (seniorModSocketId === member.socketId);
+
+      const micStatusClass = member.isSpeaking ? 'speaking' : (member.isMuted ? 'muted' : 'unmuted');
+      const micStatusTitle = member.isSpeaking ? 'Speaking' : (member.isMuted ? 'Muted' : 'Microphone On');
+
+      slot.innerHTML = `
+        <div class="avatar avatar-md ${genderClass} ${speakingClass}" title="${escapeHTML(member.name)}">
+          ${escapeHTML(initial)}
+          
+          ${member.isModerator ? `
+            <div class="avatar-mod-badge" title="Stage Moderator (10+ min on stage, max 4)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v3M8 3.5l1.5 2.5M16 3.5l-1.5 2.5"/>
+                <ellipse cx="12" cy="13" rx="4.5" ry="6.5" fill="rgba(255, 255, 255, 0.3)"/>
+                <path d="M7.5 10H3M16.5 10H21M7 13.5H2.5M17 13.5H2.5M17 13.5H21.5M7.5 17L4.5 19.5M16.5 17l3 2.5"/>
+                <line x1="12" y1="6.5" x2="12" y2="19.5"/>
+              </svg>
+            </div>
+          ` : ''}
+
+          <div class="avatar-mic-badge ${micStatusClass}" title="${micStatusTitle}">
+            ${member.isSpeaking ? `
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
+              </svg>
+            ` : (member.isMuted ? `
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="2" y1="2" x2="22" y2="22"></line>
+                <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"></path>
+                <path d="M5 10v2a7 7 0 0 0 12 5.59"></path>
+                <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"></path>
+                <path d="M9 9v3a3 3 0 0 0 5.12 2.12"></path>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
+              </svg>
+            ` : `
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
+              </svg>
+            `)}
+          </div>
+        </div>
+        <div class="speaker-name-wrap">
+          <div class="speaker-name" title="${escapeHTML(member.name)}">${escapeHTML(compactDisplayName)}${selfTag}</div>
+        </div>
+      `;
+
+      slot.addEventListener('click', () => {
+        const selfActive = currentRoomState && currentRoomState.activeMembers ? currentRoomState.activeMembers.find(m => m.socketId === currentSelfSocketId || String(m.tag) === String(userProfile?.tag)) : selfMember;
+        openProfileModal(member, activeMembers, seniorModSocketId, selfActive);
+      });
+
+      stageGrid.appendChild(slot);
+    });
+  }
+
+  // Render Waiting Queue Grid
+  function renderQueueGrid(waitingQueue, selfMember) {
+    if (!queueGrid) return;
+    queueGrid.innerHTML = '';
+
+    const isSelfMod = !!selfMember; // Active stage participant is a Stage Moderator
+
+    if (waitingQueue.length === 0) {
+      queueGrid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 1rem;">
+          Waiting Queue is currently empty.
+        </div>
+      `;
+      return;
+    }
+
+    waitingQueue.forEach(qUser => {
+      const chip = document.createElement('div');
+      chip.className = 'queue-chip';
+      chip.setAttribute('title', 'Click to view profile & options');
+
+      const isSelf = (qUser.socketId === currentSelfSocketId || (qUser.tag && String(qUser.tag) === String(userProfile?.tag)));
+      const genderClass = `avatar-gender-${qUser.gender || 'skip'}`;
+      const compactDisplayName = formatCompactHandle(qUser.name, qUser.tag);
+      const waitTimeText = formatWaitTime(qUser.waitTimeMs);
+
+      chip.innerHTML = `
+        <div class="queue-chip-inner">
+          <div class="avatar avatar-sm ${genderClass}" style="width: 34px; height: 34px; font-size: 0.75rem;">
+            ${escapeHTML((qUser.name || 'C').charAt(0).toUpperCase())}
+            <div class="avatar-mic-badge muted" title="Muted in Queue">
+              <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="2" y1="2" x2="22" y2="22"></line>
+                <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"></path>
+                <path d="M5 10v2a7 7 0 0 0 12 5.59"></path>
+                <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"></path>
+                <path d="M9 9v3a3 3 0 0 0 5.12 2.12"></path>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
+              </svg>
+            </div>
+          </div>
+
+          <div class="queue-user-details">
+            <div class="queue-user-header">
+              <span class="queue-user-name">${escapeHTML(compactDisplayName)}${isSelf ? '<span class="self-icon-badge" title="Your Account">👤</span>' : ''}</span>
+            </div>
+            <div class="queue-user-meta">
+              <span class="queue-wait-time">${waitTimeText}</span>
+              ${qUser.raisedHand ? `<span class="queue-micro-icon" title="Hand Raised">✋</span>` : ''}
+              ${qUser.quickComment ? `<span class="queue-micro-icon" title="Has Comment">💬</span>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+
+      chip.addEventListener('click', (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        console.log('🚀 [Queue Chip Clicked]', qUser, { isSelfMod, isSelf });
+
+        try {
+          if (isSelfMod && !isSelf) {
+            console.log('[Queue Chip] Opening Admit User Modal');
+            openAdmitUserModal(qUser);
+          } else if (isSelf) {
+            console.log('[Queue Chip] Opening Quick Comment Modal');
+            openQuickCommentModal();
+          } else {
+            console.log('[Queue Chip] Opening Queue User Profile Modal');
+            openQueueUserModal(qUser, false);
+          }
+        } catch (err) {
+          console.error('[Queue Chip Click Error]:', err);
+          openQueueUserModal(qUser, isSelfMod);
+        }
+      });
+
+      queueGrid.appendChild(chip);
+    });
+  }
+
+  // Update complete Junction Debate room state from server
+  function handleRoomStateUpdate(state) {
+    currentRoomState = state;
+    window._currentRoomState = state;
+    if (WebRTCStub.socket) {
+      currentSelfSocketId = WebRTCStub.socket.id;
+    }
+
+    const { activeMembers = [], waitingQueue = [], seniorModSocketId, capacity = 8 } = state;
+
+    // Update Header Metrics
+    if (stageCapacityBadge) {
+      stageCapacityBadge.textContent = `🎙️ Stage: ${activeMembers.length}/${capacity}`;
+    }
+    if (listenerCountEl) {
+      listenerCountEl.textContent = `${activeMembers.length + waitingQueue.length} Total`;
+    }
+    if (queueCountEl) {
+      queueCountEl.textContent = `${waitingQueue.length}`;
+    }
+
+    // Identify user role
+    const selfActiveMember = activeMembers.find(m => (m.socketId && m.socketId === currentSelfSocketId) || (m.tag && String(m.tag) === String(userProfile?.tag)));
+    const selfQueueMember = waitingQueue.find(q => (q.socketId && q.socketId === currentSelfSocketId) || (q.tag && String(q.tag) === String(userProfile?.tag)));
+
+    const isSelfActive = !!selfActiveMember;
+    const isSelfInQueue = !!selfQueueMember;
+
+    // Update Role Banner
+    // Toggle Senior Mod Indicator
+    if (seniorModIndicator) {
+      if (activeMembers.length >= 2 && seniorModSocketId) {
+        seniorModIndicator.style.display = 'inline-block';
+      } else {
+        seniorModIndicator.style.display = 'none';
+      }
+    }
+
+    // Toggle Mic Button availability
+    if (micButton) {
+      if (isSelfActive) {
+        micButton.style.opacity = '1';
+        micButton.style.pointerEvents = 'auto';
+        micButton.title = 'Click to Mute/Unmute';
+      } else {
+        micButton.style.opacity = '0.4';
+        micButton.style.pointerEvents = 'none';
+        micButton.title = 'Muted in Waiting Queue';
+        isMuted = true;
+        micButton.classList.remove('active-unmuted');
+        if (micIconContainer) micIconContainer.innerHTML = ICONS.micOff;
+      }
+    }
+
+    // Personal Queue Action Panel logic
+    if (queueActionPanel) {
+      if (isSelfInQueue) {
+        queueActionPanel.style.display = 'block';
+        if (waitTimerDisplay) {
+          waitTimerDisplay.textContent = `Waiting time: ${formatWaitTime(selfQueueMember.waitTimeMs)}`;
+        }
+
+        // Quick Comment logic (60s timer unlock, max 30 chars, single use)
+        if (selfQueueMember.commentUsed) {
+          if (quickCommentLock) quickCommentLock.style.display = 'none';
+          if (quickCommentForm) quickCommentForm.style.display = 'none';
+          if (quickCommentSent) {
+            quickCommentSent.style.display = 'inline-block';
+            quickCommentSent.textContent = `💬 Comment: "${escapeHTML(selfQueueMember.quickComment)}"`;
+          }
+        } else if (selfQueueMember.canComment) {
+          if (quickCommentLock) quickCommentLock.style.display = 'none';
+          if (quickCommentForm) quickCommentForm.style.display = 'flex';
+          if (quickCommentSent) quickCommentSent.style.display = 'none';
+        } else {
+          if (quickCommentLock) {
+            quickCommentLock.style.display = 'inline-block';
+            const remainingSec = Math.max(1, Math.ceil((60000 - selfQueueMember.waitTimeMs) / 1000));
+            quickCommentLock.textContent = `⏱️ Quick Comment unlocks in ${remainingSec}s`;
+          }
+          if (quickCommentForm) quickCommentForm.style.display = 'none';
+          if (quickCommentSent) quickCommentSent.style.display = 'none';
+        }
+
+        // Raise hand button in panel
+        if (btnQueueRaiseHand) {
+          if (selfQueueMember.raisedHand) {
+            btnQueueRaiseHand.className = 'btn btn-gold btn-pill';
+            btnQueueRaiseHand.textContent = '✋ Hand Raised';
+          } else {
+            btnQueueRaiseHand.className = 'btn btn-secondary btn-pill';
+            btnQueueRaiseHand.textContent = '✋ Raise Hand';
+          }
+        }
+
+      } else {
+        queueActionPanel.style.display = 'none';
+      }
+    }
+
+    // Render Stage and Queue Grids
+    renderStageGrid(activeMembers, seniorModSocketId, selfActiveMember);
+    renderQueueGrid(waitingQueue, selfActiveMember);
+    updateTimersPerSecond();
+  }
+
+  // Update live per-second counters for Stage Mod stats, personal wait timer, and quick comment countdown
+  function updateTimersPerSecond() {
+    if (!currentRoomState) return;
+    try {
+      const now = Date.now();
+      const activeMembers = currentRoomState.activeMembers || [];
+      const waitingQueue = currentRoomState.waitingQueue || [];
+
+      const selfActiveMember = activeMembers.find(m => (m.socketId && m.socketId === currentSelfSocketId) || (m.tag && String(m.tag) === String(userProfile?.tag)));
+      const selfQueueMember = waitingQueue.find(q => (q.socketId && q.socketId === currentSelfSocketId) || (q.tag && String(q.tag) === String(userProfile?.tag)));
+
+      const badgeCap = stageCapacityBadge || document.getElementById('stage-capacity-badge');
+      const listenerCount = listenerCountEl || document.getElementById('room-listener-count');
+      const queueCount = queueCountEl || document.getElementById('queue-count');
+
+      // Live sync header metric badges
+      if (badgeCap) {
+        badgeCap.textContent = `🎙️ Stage: ${activeMembers.length}/${currentRoomState.capacity || 8}`;
+      }
+      if (listenerCount) {
+        listenerCount.textContent = `${activeMembers.length + waitingQueue.length} Total`;
+      }
+      if (queueCount) {
+        queueCount.textContent = `${waitingQueue.length}`;
+      }
+
+      // Ensure stage grid chips are rendered if grid count is mismatched
+      if (stageGrid && (stageGrid.children.length !== activeMembers.length)) {
+        renderStageGrid(activeMembers, currentRoomState.seniorModSocketId, selfActiveMember);
+      }
+
+      // Stage timer display beside "Live Active Stage (Max 8)"
+      if (stageModStatsEl) {
+        const MODERATOR_WAIT_TIME_MS = 1 * 60 * 1000;
+        if (selfActiveMember) {
+          const activeTimeMs = now - (selfActiveMember.joinedActiveAt || now);
+          const timeRemainingMs = Math.max(0, MODERATOR_WAIT_TIME_MS - activeTimeMs);
+          if (timeRemainingMs > 0) {
+            stageModStatsEl.textContent = `🎙️ Active Stage • ${formatTimeMS(timeRemainingMs)}`;
+          } else {
+            stageModStatsEl.textContent = selfActiveMember.isModerator ? '👑 Stage Moderator' : '🎙️ Active Stage';
+          }
+          stageModStatsEl.style.display = 'inline-flex';
+        } else if (activeMembers.length > 0) {
+          const earliestJoined = Math.min(...activeMembers.map(m => m.joinedActiveAt || now));
+          const activeTimeMs = now - earliestJoined;
+          const timeRemainingMs = Math.max(0, MODERATOR_WAIT_TIME_MS - activeTimeMs);
+          if (timeRemainingMs > 0) {
+            stageModStatsEl.textContent = `👑 Stage Active • ${formatTimeMS(timeRemainingMs)}`;
+          } else {
+            stageModStatsEl.textContent = `👑 Stage Active`;
+          }
+          stageModStatsEl.style.display = 'inline-flex';
+        } else {
+          stageModStatsEl.style.display = 'none';
+        }
+      }
+
+      // 3. Personal Queue Wait Timer & Quick Comment Countdown
+      if (selfQueueMember) {
+        const waitMs = now - selfQueueMember.joinedWaitAt;
+        if (waitTimerDisplay) {
+          waitTimerDisplay.textContent = `Waiting time: ${formatWaitTime(waitMs)}`;
+        }
+      }
+    } catch (e) {
+      console.warn('[Ticker Error]:', e);
+    }
+  }
+
+  // Run per-second live ticker
+  setInterval(updateTimersPerSecond, 1000);
+
+  // Connect WebRTC & Socket.io Signaling
+  async function initVoiceConnection() {
+    await WebRTCStub.connectToRoom(roomId, userProfile, {
+      onRoomStateUpdate: (state) => {
+        handleRoomStateUpdate(state);
+      },
+      onRoleAssigned: ({ role }) => {
+        if (role === 'active') {
+          showToast('🎉 You have been admitted to the Live Active Stage! Unmute your mic to speak.');
+        } else if (role === 'queue') {
+          showToast('ℹ️ You were moved to the Waiting Queue.');
+        }
+      },
+      onRemovalToast: ({ message }) => {
+        showToast(message);
+      },
+      onActionError: ({ message }) => {
+        showToast(`⚠️ ${message}`);
+      },
+      onPeerMuteChanged: ({ socketId, tag, isMuted: peerMuted, isSpeaking }) => {
+        if (currentRoomState && currentRoomState.activeMembers) {
+          const member = currentRoomState.activeMembers.find(m => m.socketId === socketId || m.tag === tag);
+          if (member) {
+            member.isMuted = peerMuted;
+            member.isSpeaking = isSpeaking;
+            const selfActiveMember = currentRoomState.activeMembers.find(m => m.socketId === currentSelfSocketId);
+            renderStageGrid(currentRoomState.activeMembers, currentRoomState.seniorModSocketId, selfActiveMember);
+          }
+        }
+      },
+      onLocalSpeakingState: (isSpeaking) => {
+        if (currentRoomState && currentRoomState.activeMembers) {
+          const selfActiveMember = currentRoomState.activeMembers.find(m => m.socketId === currentSelfSocketId || m.tag === userProfile.tag);
+          if (selfActiveMember && selfActiveMember.isSpeaking !== isSpeaking && !isMuted) {
+            selfActiveMember.isSpeaking = isSpeaking;
+            renderStageGrid(currentRoomState.activeMembers, currentRoomState.seniorModSocketId, selfActiveMember);
+          }
+        }
+      }
+    });
+  }
+
+  await initVoiceConnection();
+
+  // Check Microphone Permission State
+  async function checkPermissionState() {
+    let alreadyGranted = storage.hasMicPermission();
+    if (!alreadyGranted && navigator.permissions && navigator.permissions.query) {
+      try {
+        const status = await navigator.permissions.query({ name: 'microphone' });
+        if (status.state === 'granted') {
+          alreadyGranted = true;
+          storage.saveMicPermission(true);
+        }
+      } catch (e) { }
+    }
+    return alreadyGranted;
+  }
+
+  const isAlreadyPermitted = await checkPermissionState();
+  if (isAlreadyPermitted) {
+    if (permModal) permModal.classList.remove('active');
+    await WebRTCStub.getLocalMicrophone();
+  } else if (permModal) {
+    permModal.classList.add('active');
+  }
+
+  if (btnGrantPerm) {
+    btnGrantPerm.addEventListener('click', async () => {
+      if (permModal) permModal.classList.remove('active');
+      storage.saveMicPermission(true);
+      await WebRTCStub.getLocalMicrophone();
+    });
+  }
+
+  // Mic Button Toggle Mute Logic
+  if (micButton) {
+    micButton.addEventListener('click', async () => {
+      isMuted = !isMuted;
+      await WebRTCStub.setMuteState(isMuted);
+
+      if (isMuted) {
+        micButton.classList.remove('active-unmuted');
+        if (micIconContainer) micIconContainer.innerHTML = ICONS.micOff;
+      } else {
+        micButton.classList.add('active-unmuted');
+        if (micIconContainer) micIconContainer.innerHTML = ICONS.mic;
+      }
+    });
+  }
+
+  // Raise Hand Buttons
+  if (btnRaiseHand) {
+    btnRaiseHand.addEventListener('click', async () => {
+      await WebRTCStub.toggleQueueHand();
+    });
+  }
+
+  if (btnQueueRaiseHand) {
+    btnQueueRaiseHand.addEventListener('click', async () => {
+      await WebRTCStub.toggleQueueHand();
+    });
+  }
+
+  // Quick Comment Form Submission
+  if (quickCommentForm) {
+    quickCommentForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!inputQuickComment) return;
+      const commentText = inputQuickComment.value.trim();
+      if (commentText.length > 0) {
+        await WebRTCStub.submitQuickComment(commentText);
+        inputQuickComment.value = '';
+      }
+    });
+  }
+
+  // Exit Room Button Logic
+  if (btnReport) {
+    btnReport.addEventListener('click', async () => {
+      storage.clearActiveJunction();
+      await WebRTCStub.leaveRoom();
+      window.location.href = 'junctions.html';
+    });
+  }
+});
+
