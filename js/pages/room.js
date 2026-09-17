@@ -958,26 +958,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await initVoiceConnection();
 
-  // Check Microphone Permission State
-  async function checkPermissionState() {
-    let alreadyGranted = storage.hasMicPermission();
-    if (!alreadyGranted && navigator.permissions && navigator.permissions.query) {
-      try {
-        const status = await navigator.permissions.query({ name: 'microphone' });
-        if (status.state === 'granted') {
-          alreadyGranted = true;
-          storage.saveMicPermission(true);
-        }
-      } catch (e) { }
-    }
-    return alreadyGranted;
-  }
-
-  const isAlreadyPermitted = await checkPermissionState();
-  if (isAlreadyPermitted) {
-    if (permModal) permModal.classList.remove('active');
-    await WebRTCStub.getLocalMicrophone();
-  } else if (permModal) {
+  // Force the Join Audio modal to show on every page load to fix browser autoplay policies
+  if (permModal) {
     permModal.classList.add('active');
   }
 
@@ -985,6 +967,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnGrantPerm.addEventListener('click', async () => {
       if (permModal) permModal.classList.remove('active');
       storage.saveMicPermission(true);
+      // Wait for microphone initialization and audio context unlocking
       await WebRTCStub.getLocalMicrophone();
     });
   }
