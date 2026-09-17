@@ -107,6 +107,14 @@ class WebRTCManager {
           await audioSender.replaceTrack(micTrack);
         } else {
           pc.addTrack(micTrack, this.localStream);
+          // BUGFIX: Renegotiate explicitely because a new track was added asynchronously after initial SDP handshake
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          this.socket.emit('signal-offer', {
+            targetSocketId: socketId,
+            offer: pc.localDescription,
+            senderProfile: this.userProfile
+          });
         }
       } catch (e) {
         console.warn('[WebRTC] Track sync error for socket:', socketId, e);
