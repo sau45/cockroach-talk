@@ -894,6 +894,8 @@
   cursor: pointer;
   transition: all var(--transition-fast);
   box-shadow: var(--shadow-md) !important;
+  position: relative;
+  z-index: 10;
 }
 
 .btn-remove-modal:hover {
