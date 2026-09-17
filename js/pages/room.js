@@ -128,8 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const roomId = urlParams.get('id') || 'maharashtra';
 
-  // Mark this session as actively in this junction room (cross-tab via localStorage)
-  const formattedRoomNameForStorage = roomId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Cockroach';
+  const formattedRoomNameForStorage = roomId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   storage.setActiveJunction(roomId, formattedRoomNameForStorage);
 
   // Heartbeat: refresh the timestamp every 5 minutes so the 30-min expiry stays alive
@@ -598,7 +597,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentSelfSocketId = null;
 
   // Format room header text
-  const formattedRoomName = roomId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Cockroach';
+  const formattedRoomName = roomId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   if (roomTitleEl) roomTitleEl.textContent = formattedRoomName;
   if (roomTopicEl) roomTopicEl.textContent = `Live ${formattedRoomName} debate junction & community stage`;
 
@@ -877,7 +876,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (timeRemainingMs > 0) {
             stageModStatsEl.innerHTML = `<i class="bi bi-mic-fill" aria-hidden="true"></i> Active Stage <i class="bi bi-dot" aria-hidden="true"></i> ${formatTimeMS(timeRemainingMs)}`;
           } else {
-            stageModStatsEl.innerHTML = selfActiveMember.isModerator ? '<i class="bi bi-star-fill" aria-hidden="true"></i> Stage Moderator' : '<i class="bi bi-mic-fill" aria-hidden="true"></i> Active Stage';
+            stageModStatsEl.innerHTML = selfActiveMember.isModerator ? '<i class="bi bi-bug-fill" aria-hidden="true"></i> Moderator' : '<i class="bi bi-mic-fill" aria-hidden="true"></i> Active Stage';
           }
           stageModStatsEl.style.display = 'inline-flex';
         } else if (activeMembers.length > 0) {

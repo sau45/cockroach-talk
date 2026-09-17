@@ -291,10 +291,53 @@
   pointer-events: none;
 }
 
+.hero-title {
+  font-size: clamp(2.2rem, 5.5vw, 3.8rem);
+  max-width: 800px;
+  line-height: 1.15;
+  margin: 0 auto;
+}
+
+.hero-subtitle {
+  font-size: 1.15rem;
+  max-width: 640px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 auto;
+}
+
+.hero-cta-btn {
+  padding: 1rem 2.5rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  border: 3px solid var(--red);
+  box-shadow: var(--shadow-lg);
+}
+
 @media (min-width: 768px) {
   .hero-section {
     padding: 3.5rem 2rem 2.5rem; /* Added left/right padding */
     gap: 1.5rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .hero-section {
+    padding: 1.75rem 1.25rem;
+    gap: 0.85rem;
+    margin: 1.25rem 1rem; /* 1rem margin on left/right so it doesn't touch edges */
+    width: auto;
+  }
+  .hero-title {
+    font-size: 1.6rem;
+  }
+  .hero-subtitle {
+    font-size: 0.95rem;
+    line-height: 1.4;
+  }
+  .hero-cta-btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
   }
 }
 

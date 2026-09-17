@@ -1588,14 +1588,14 @@
 @media (max-width: 639px) {
   /* Room Top Bar Layout */
   .room-top-bar {
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    flex-wrap: nowrap;
+    gap: 0.25rem;
     padding: 0;
   }
   
   .room-top-bar > div:first-child {
-    width: 100%;
-    margin-bottom: 0.25rem;
+    width: auto;
+    margin-bottom: 0;
   }
   
   /* Make title fit better without clunky wrapping */
