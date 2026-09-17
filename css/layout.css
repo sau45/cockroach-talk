@@ -7,7 +7,7 @@
   width: 100%;
   max-width: var(--container-max-width);
   margin: 0 auto;
-  padding: 0 0.85rem;
+  padding: 0 1.25rem;
 }
 
 @media (min-width: 640px) {
@@ -27,7 +27,7 @@
 .site-header {
   position: sticky;
   top: 0;
-  z-index: 500;
+  z-index: 10000000 !important; /* Above all modals */
   min-height: 56px;
   background-color: var(--bg-glass);
   backdrop-filter: none !important;
@@ -165,9 +165,10 @@
 }
 
 .mobile-menu-panel.open {
-  opacity: 1;
-  pointer-events: auto;
+  opacity: 1 !important;
+  pointer-events: auto !important;
   transform: translateY(0);
+  z-index: 999999 !important;
 }
 
 @media (min-width: 768px) {
@@ -275,23 +276,24 @@
 .hero-section::before {
   content: "";
   position: absolute;
-  top: -20%;
-  left: -20%;
-  width: 140%;
-  height: 140%;
-  background: 
-    radial-gradient(circle at 15% 30%, rgba(255, 217, 179, 0.6) 0%, transparent 45%),
-    radial-gradient(circle at 85% 20%, rgba(255, 143, 163, 0.6) 0%, transparent 45%),
-    radial-gradient(circle at 50% 80%, rgba(194, 168, 255, 0.6) 0%, transparent 55%),
-    radial-gradient(circle at 75% 60%, rgba(168, 216, 255, 0.6) 0%, transparent 55%);
-  filter: blur(40px);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* Neo-brutalist grid + sharp diagonal geometric slash */
+  background-color: var(--bg-card);
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(135deg, transparent 65%, rgba(122, 62, 232, 0.25) 65%, rgba(122, 62, 232, 0.25) 100%);
+  background-size: 24px 24px, 24px 24px, 100% 100%;
   z-index: -1;
   pointer-events: none;
 }
 
 @media (min-width: 768px) {
   .hero-section {
-    padding: 3.5rem 0 2.5rem;
+    padding: 3.5rem 2rem 2.5rem; /* Added left/right padding */
     gap: 1.5rem;
   }
 }
@@ -315,7 +317,8 @@
 
 /* SEO How It Works Grid */
 .how-it-works-section {
-  padding: 2rem 0;
+  padding-top: 2rem;
+  padding-bottom: 2rem;
   border-top: 1px solid var(--border-subtle);
 }
 
@@ -426,7 +429,7 @@
   width: 100%;
   max-width: 680px;
   margin: 1.5rem auto 0;
-  padding: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
   display: flex;
   align-items: center;
   justify-content: space-between;

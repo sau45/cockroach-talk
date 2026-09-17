@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Apply saved theme on initial boot
   let savedTheme = storage.getTheme();
   if (!savedTheme) {
-    savedTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    savedTheme = 'dark'; // Force dark mode as default
   }
   
   if (savedTheme === 'light') {
@@ -102,10 +102,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (iconHamburger) iconHamburger.style.display = 'none';
         if (iconClose) iconClose.style.display = 'block';
       } else {
-        menuPanel.classList.remove('open');
-        menuToggleBtn.setAttribute('aria-expanded', 'false');
-        if (iconHamburger) iconHamburger.style.display = 'block';
-        if (iconClose) iconClose.style.display = 'none';
+        // Delay closing slightly to prevent mobile browsers from swallowing synthetic link clicks when pointer-events: none applies instantly
+        setTimeout(() => {
+          menuPanel.classList.remove('open');
+          menuToggleBtn.setAttribute('aria-expanded', 'false');
+          if (iconHamburger) iconHamburger.style.display = 'block';
+          if (iconClose) iconClose.style.display = 'none';
+        }, 150);
       }
     };
 

@@ -80,8 +80,8 @@ window.__handleAdmitClick = function (btnEl, event) {
     return;
   }
 
-  let tag = btnEl.getAttribute('data-admit-tag');
-  let socketId = btnEl.getAttribute('data-admit-socket');
+  let tag = btnEl.getAttribute('data-admit-tag') || btnEl.getAttribute('data-target-tag');
+  let socketId = btnEl.getAttribute('data-admit-socket') || btnEl.getAttribute('data-target-socket');
 
   if (!tag && btnEl.textContent) {
     const match = btnEl.textContent.match(/#(\d+)/);
@@ -673,11 +673,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isSelfMod = !!selfMember; // Active stage participant is a Stage Moderator
 
     if (waitingQueue.length === 0) {
-      queueGrid.innerHTML = `
-        <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 1rem;">
-          Waiting Queue is currently empty.
-        </div>
-      `;
+      // Intentionally leave the grid completely empty instead of showing a bulky placeholder text to save screen real estate
       return;
     }
 

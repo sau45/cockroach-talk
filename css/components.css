@@ -1582,5 +1582,40 @@
   transform: scale(1.12);
 }
 
-
-
+/* ==========================================================================
+   Mobile Responsive Adjustments (Max 639px)
+   ========================================================================== */
+@media (max-width: 639px) {
+  /* Room Top Bar Layout */
+  .room-top-bar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0;
+  }
+  
+  .room-top-bar > div:first-child {
+    width: 100%;
+    margin-bottom: 0.25rem;
+  }
+  
+  /* Make title fit better without clunky wrapping */
+  .room-heading-title {
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* Badges - Remove thick borders and make them sleeker */
+  .badge-capacity,
+  .badge-live {
+    border-width: 1px !important;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    border-radius: var(--radius-sm) !important;
+  }
+  
+  .badge-capacity {
+    background: transparent;
+  }
+}

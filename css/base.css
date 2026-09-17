@@ -15,6 +15,13 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+@media (max-width: 639px) {
+  html {
+    /* Globally scale down the entire UI and all padding/margins proportionally on mobile by lowering the root rem base */
+    font-size: 13.5px;
+  }
+}
+
 body {
   font-family: var(--font-family-body);
   background-color: var(--bg-main);

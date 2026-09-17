@@ -6,10 +6,10 @@
               </button> <button id="btn-open-comment-modal" class="btn btn-secondary btn-pill"
                 style="font-size: 0.8rem; font-weight: 700;"> <i class="bi bi-chat-right-text-fill" aria-hidden="true"></i> Quick Comment
               </button> </div> </div> </div> <!-- Queue Users Grid --> <div id="queue-grid" class="queue-grid"> <!-- Rendered dynamically by room.js --> </div> </div> <!-- Simple Clean In-Page Room Controls Bar --> <div class="room-controls-bar"> <button id="btn-raise-hand" class="btn btn-secondary btn-pill"
-          style="padding: 0.55rem 1.15rem; font-size: 0.85rem; font-weight: 700;"> <i class="bi bi-hand-index-thumb-fill" aria-hidden="true"></i> Raise Hand
+          style="padding: 0.55rem 1rem; font-size: 0.75rem; font-weight: 700;"> <i class="bi bi-hand-index-thumb-fill" aria-hidden="true"></i> Raise Hand
         </button> <div class="mic-button-container"> <button id="mic-button" class="mic-button" aria-label="Toggle Mute/Unmute" title="Click to Mute/Unmute"> <span id="mic-icon-container"> <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round"> <line x1="1" y1="1" x2="23" y2="23"></line> <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path> <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path> <line x1="12" y1="19" x2="12" y2="23"></line> <line x1="8" y1="23" x2="16" y2="23"></line> </svg> </span> </button> </div> <button id="btn-report-room" class="btn btn-secondary btn-pill"
-          style="padding: 0.55rem 1.15rem; font-size: 0.85rem; font-weight: 700;">
+          style="padding: 0.55rem 1rem; font-size: 0.75rem; font-weight: 700;">
         Exit Room
         </button> </div> </section> </main> <!-- Persistent Join Room Modal --> <div id="permission-modal" class="modal-backdrop active" style="z-index: 9999999 !important;"> <div class="modal-content" style="text-align: center; max-width: 380px;"> <span style="font-size: 2.25rem; display: block; margin-bottom: 0.5rem;"><i class="bi bi-headphones" aria-hidden="true"></i></span> <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Join Live Room</h3> <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
         Click below to join the live room and connect your audio.
@@ -21,7 +21,7 @@
           </p> </div> <!-- Quota & Action Details --> <div id="profile-modal-action-box" class="profile-action-box"></div> </div> <div class="profile-modal-footer"> <button id="btn-close-profile-modal" class="btn btn-secondary btn-pill"
           style="width: 100%; justify-content: center;">
           Done
-        </button> </div> </div> </div> <!-- Dedicated Admit Participant Modal for Stage Moderators --> <div id="admit-user-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="admit-modal-title"> <div class="modal-content profile-modal-content" style="max-width: 420px; text-align: center;"> <button id="admit-modal-close" class="modal-close-btn" aria-label="Close modal"><i class="bi bi-x-lg" aria-hidden="true"></i></button> <div style="font-size: 2.2rem; margin-bottom: 0.35rem;"><i class="bi bi-mic-fill" aria-hidden="true"></i></div> <h3 id="admit-modal-title"
+        </button> </div> </div> </div> <!-- Dedicated Admit Participant Modal for Stage Moderators --> <div id="admit-user-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="admit-modal-title" style="z-index: 9999999 !important;"> <div class="modal-content profile-modal-content" style="max-width: 420px; text-align: center;"> <button id="admit-modal-close" class="modal-close-btn" aria-label="Close modal"><i class="bi bi-x-lg" aria-hidden="true"></i></button> <div style="font-size: 2.2rem; margin-bottom: 0.35rem;"><i class="bi bi-mic-fill" aria-hidden="true"></i></div> <h3 id="admit-modal-title"
         style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.25rem;">
         Admit Participant to Stage
       </h3> <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
@@ -34,7 +34,7 @@
           style="display: none; background: var(--bg-page); border: 3px solid var(--border-dark); padding: 0.55rem 0.85rem; border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--text-primary); margin-top: 0.75rem; box-shadow: var(--shadow-none);"> <span
             style="color: var(--accent-purple); font-weight: 800; font-size: 0.75rem; display: block; margin-bottom: 0.2rem;"><i class="bi bi-chat-right-text-fill" aria-hidden="true"></i>
             Quick Comment:</span> <span id="admit-modal-comment-text">""</span> </div> </div> <button id="btn-admit-user-confirm" class="btn btn-primary btn-pill"
-        style="width: 100%; justify-content: center; font-weight: 800; font-size: 0.95rem; padding: 0.75rem 1.25rem;">
+        style="width: 100%; justify-content: center; font-weight: 800; font-size: 0.95rem; padding: 0.75rem 1.25rem;" onclick="window.__handleAdmitClick(this, event)">
         + Admit to Active Stage
       </button> </div> </div> <!-- Quick Comment Popup Modal --> <div id="quick-comment-modal" class="modal-backdrop" role="dialog" aria-modal="true"
     aria-labelledby="comment-modal-title"> <div class="modal-content comment-modal-content"> <button id="comment-modal-close" class="modal-close-btn" aria-label="Close modal"><i class="bi bi-x-lg" aria-hidden="true"></i></button> <div class="comment-modal-header"> <span class="comment-modal-icon"><i class="bi bi-chat-right-text-fill" aria-hidden="true"></i></span> <h4 id="comment-modal-title" class="comment-modal-title">Quick Comment</h4> </div> <div class="comment-modal-body"> <p class="comment-modal-desc">
