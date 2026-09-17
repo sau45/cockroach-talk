@@ -93,12 +93,36 @@ export function createJunctionCard(room) {
     statusLabel = `FULL (${listenerCount})`;
   }
 
+  let usersHTML = '';
+  if (room.allUsers && room.allUsers.length > 0) {
+    const userChips = room.allUsers.map(u => {
+      // Format like Co..#1234
+      const parts = u.name.split('#');
+      const shortName = parts[1] ? `Co..#${parts[1]}` : u.name;
+      return `<div class="mini-user-chip" title="${escapeHTML(u.name)}">${escapeHTML(shortName)}</div>`;
+    }).join('');
+    usersHTML = `<div class="junction-users-grid">${userChips}</div>`;
+  }
+
   card.innerHTML = `
-    <div class="chip-top">
-      ${cockroachSVG}
-      <h3 class="chip-title">${escapeHTML(room.name)}</h3> </div> <div class="chip-bottom"> <div class="status-row ${isLive ? 'is-live' : 'is-quiet'} ${isFull ? 'is-full' : ''}"> <div class="status-indicator"> <span class="status-dot"></span> <span class="status-label">${statusLabel}</span> </div> <div class="status-icon">
+    <div class="chip-top" style="justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        ${cockroachSVG}
+        <h3 class="chip-title">${escapeHTML(room.name)}</h3>
+      </div>
+      <div class="status-indicator ${isLive ? 'is-live' : 'is-quiet'}">
+        <span class="status-dot"></span>
+        <span class="status-label">${statusLabel}</span>
+      </div>
+    </div>
+    <div class="chip-bottom">
+      <div class="status-row ${isLive ? 'is-live' : 'is-quiet'} ${isFull ? 'is-full' : ''}">
+        ${usersHTML}
+        <div class="status-icon" style="margin-left: auto;">
           ${micIcon}
-        </div> </div> </div>
+        </div>
+      </div>
+    </div>
   `;
 
   if (isFull) {

@@ -206,12 +206,12 @@
   background-color: currentColor;
 }
 
-.status-row.is-quiet .status-indicator {
+.status-indicator.is-quiet {
   background-color: var(--status-quiet-bg);
   color: var(--status-quiet-text);
 }
 
-.status-row.is-live .status-indicator {
+.status-indicator.is-live {
   background-color: var(--status-loud-bg);
   color: var(--status-loud-text);
 }
@@ -230,6 +230,36 @@
   width: 20px;
   height: 20px;
   color: inherit;
+}
+
+/* Mini User Grid inside Junction Cards */
+.junction-users-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.25rem;
+  flex: 1;
+  margin: 0 0.5rem;
+  justify-content: center;
+}
+
+.mini-user-chip {
+  font-size: 0.55rem;
+  font-weight: 600;
+  background: var(--bg-hover);
+  padding: 0.2rem 0.25rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.mini-user-chip:hover {
+  border-color: var(--border-dark);
+  color: var(--text-main);
 }
 
 /* 1-Top 2-Bottom Micro Avatar Cluster Layout */

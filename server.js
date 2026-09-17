@@ -213,6 +213,10 @@ app.get('/api/rooms', (req, res) => {
         name: u.displayName,
         gender: u.gender || 'skip',
         isSpeaking: u.isSpeaking || false
+      })) : [],
+      allUsers: jRoom ? [...jRoom.activeMembers, ...jRoom.waitingQueue].map(u => ({
+        tag: u.tag,
+        name: u.displayName
       })) : []
     };
   });
