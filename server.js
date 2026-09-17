@@ -67,8 +67,8 @@ app.get('/api/turn-credentials', (req, res) => {
 });
 
 // Global user state variables
-let memoryCounter = 1001;
 let usersCollection = null;
+let countersCollection = null;
 
 // Initialize MongoDB Connection if MONGODB_URI is specified
 if (process.env.MONGODB_URI) {
@@ -76,9 +76,18 @@ if (process.env.MONGODB_URI) {
   mongoClient.connect().then(() => {
     const db = mongoClient.db(process.env.MONGODB_DB || 'cockroachtalk');
     usersCollection = db.collection('users');
+    countersCollection = db.collection('counters');
+    
+    // Ensure the global counter document exists
+    countersCollection.updateOne(
+      { _id: 'userid' },
+      { $setOnInsert: { seq: 1000 } },
+      { upsert: true }
+    ).catch(e => console.warn('Counter init error', e));
+
     console.log('✅ MongoDB connected for CockroachTalk user management.');
   }).catch((err) => {
-    console.warn('<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> MongoDB connection warning:', err.message);
+    console.error('❌ MONGODB CONNECTION FAILED! Check your IP Whitelist in MongoDB Atlas or ensure the cluster is active. Error:', err.message);
   });
 }
 
@@ -210,6 +219,8 @@ app.get('/api/rooms', (req, res) => {
   res.json(rooms);
 });
 
+let memoryCounter = 1001;
+
 /**
  * GET /api/unique-id
  */
@@ -217,15 +228,20 @@ app.get('/api/unique-id', async (req, res) => {
   try {
     let nextId = null;
 
-    if (usersCollection) {
-      const lastUser = await usersCollection.find().sort({ tagNum: -1 }).limit(1).toArray();
-      const lastTagNum = (lastUser.length > 0 && lastUser[0].tagNum) ? lastUser[0].tagNum : 1000;
-      const newTagNum = lastTagNum + 1;
-      nextId = newTagNum.toString();
+    if (usersCollection && countersCollection) {
+      // ATOMIC increment to guarantee no duplicate IDs even if multiple users connect at the same millisecond
+      const counterDoc = await countersCollection.findOneAndUpdate(
+        { _id: 'userid' },
+        { $inc: { seq: 1 } },
+        { returnDocument: 'after', upsert: true }
+      );
+      
+      const seq = counterDoc.seq || (counterDoc.value && counterDoc.value.seq) || 1001;
+      nextId = seq.toString();
 
       await usersCollection.insertOne({
         tag: nextId,
-        tagNum: newTagNum,
+        tagNum: seq,
         handle: `Cockroach #${nextId}`,
         createdAt: new Date(),
         lastActiveAt: new Date()
