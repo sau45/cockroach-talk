@@ -367,6 +367,12 @@ io.on('connection', (socket) => {
       console.log(`[Room] "${safeName}" (#${safeTag}) RECONNECTED in waiting queue.`);
     } else {
       // New user entry for this room
+      const totalRoomUsers = room.activeMembers.length + room.waitingQueue.length;
+      if (totalRoomUsers >= 8) {
+        socket.emit('room-full', { maxCapacity: 8 });
+        return;
+      }
+
       if (room.activeMembers.length < INITIAL_STAGE_SLOTS) {
         currentUserProfile.joinedActiveAt = now;
         currentUserProfile.removalsCount = 0;

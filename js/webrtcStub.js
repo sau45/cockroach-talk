@@ -234,6 +234,12 @@ class WebRTCManager {
       }
     });
 
+    // Room is full rejection
+    this.socket.on('room-full', ({ maxCapacity }) => {
+      alert(`This junction is currently full (Max ${maxCapacity} participants). Please try again later.`);
+      window.location.href = 'junctions.html';
+    });
+
     // Received list of existing peers in room
     this.socket.on('room-peers', async ({ peers }) => {
       console.log('[WebRTC] Loaded existing room peers:', peers);

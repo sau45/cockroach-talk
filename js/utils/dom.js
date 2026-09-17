@@ -76,6 +76,7 @@ export function createJunctionCard(room) {
 
   const listenerCount = (typeof room.listeners === 'number') ? room.listeners : 0;
   const isLive = listenerCount > 0;
+  const isFull = listenerCount >= 8;
 
   // Cockroach SVG Icon (Standardized to 24px via CSS)
   const cockroachSVG = `
@@ -87,16 +88,32 @@ export function createJunctionCard(room) {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path> <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path> <line x1="12" y1="19" x2="12" y2="22"></line> <line x1="8" y1="22" x2="16" y2="22"></line> </svg>` : `
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"> <rect x="3" y="3" width="18" height="18" rx="0" ry="0"></rect> </svg>`;
 
+  let statusLabel = isLive ? 'ACTIVE' : 'QUIET';
+  if (isFull) {
+    statusLabel = `FULL (${listenerCount})`;
+  }
+
   card.innerHTML = `
     <div class="chip-top">
       ${cockroachSVG}
-      <h3 class="chip-title">${escapeHTML(room.name)}</h3> </div> <div class="chip-bottom"> <div class="status-row ${isLive ? 'is-live' : 'is-quiet'}"> <div class="status-indicator"> <span class="status-dot"></span> <span class="status-label">${isLive ? 'ACTIVE' : 'QUIET'}</span> </div> <div class="status-icon">
+      <h3 class="chip-title">${escapeHTML(room.name)}</h3> </div> <div class="chip-bottom"> <div class="status-row ${isLive ? 'is-live' : 'is-quiet'} ${isFull ? 'is-full' : ''}"> <div class="status-indicator"> <span class="status-dot"></span> <span class="status-label">${statusLabel}</span> </div> <div class="status-icon">
           ${micIcon}
         </div> </div> </div>
   `;
 
+  if (isFull) {
+    card.style.opacity = '0.6';
+    card.style.cursor = 'not-allowed';
+  }
+
   // Intercept click — show conflict modal if user is already in a different junction
   card.addEventListener('click', async (e) => {
+    if (isFull) {
+      e.preventDefault();
+      alert(`This junction is full (Max 8 participants).`);
+      return;
+    }
+    
     const activeJunction = storage.getActiveJunction();
 
     if (activeJunction && activeJunction.roomId !== room.id) {

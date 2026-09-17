@@ -1618,4 +1618,15 @@
   .badge-capacity {
     background: transparent;
   }
+  
+  /* Force 3 users per row on mobile for better UI */
+  .spaces-stage-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.85rem 0.4rem;
+  }
+  
+  /* Make waiting queue fit better on mobile */
+  .queue-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
