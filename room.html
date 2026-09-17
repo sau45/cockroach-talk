@@ -15,35 +15,6 @@
                 stroke-linecap="round" stroke-linejoin="round"> <line x1="1" y1="1" x2="23" y2="23"></line> <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path> <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path> <line x1="12" y1="19" x2="12" y2="23"></line> <line x1="8" y1="23" x2="16" y2="23"></line> </svg> </span> </button> </div> <button id="btn-report-room" class="btn btn-secondary btn-pill"
           style="padding: 0.55rem 1rem; font-size: 0.75rem; font-weight: 700;">
         Exit Room
-        </button> </div> </section> </main> <!-- Persistent Join Room Modal --> <div id="permission-modal" class="modal-backdrop active" style="z-index: 9999999 !important;"> <div class="modal-content" style="text-align: center; max-width: 380px;"> <span style="font-size: 2.25rem; display: block; margin-bottom: 0.5rem;"><i class="bi bi-headphones" aria-hidden="true"></i></span> <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Join Live Room</h3> <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-        Click below to join the live room and connect your audio.
-      </p> <button id="btn-grant-permission" class="btn btn-gold btn-pill" style="width: 100%; justify-content: center;" onclick="document.getElementById('permission-modal').classList.remove('active'); if(window._forceMicInit) window._forceMicInit();">
-        Click to Join Audio <i class="bi bi-stars" aria-hidden="true"></i> </button> </div> </div> <!-- Speaker Profile & Moderation Action Modal --> <div id="profile-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="profile-modal-name"> <div class="modal-content profile-modal-content"> <button id="profile-modal-close" class="modal-close-btn" aria-label="Close modal"><i class="bi bi-x-lg" aria-hidden="true"></i></button> <div class="profile-modal-header"> <div id="profile-modal-avatar-container" class="profile-modal-avatar-wrap"></div> <div class="profile-modal-identity"> <h3 id="profile-modal-name" class="profile-modal-name">Speaker Handle</h3> <div id="profile-modal-status-pill" class="profile-modal-status-pill"></div> </div> </div> <div class="profile-modal-body"> <!-- Moderation Info Box --> <div class="profile-info-card"> <div class="profile-info-header"> <svg class="cockroach-header-icon" viewBox="0 0 24 24" width="16" height="16" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 2v3M8 3.5l1.5 2.5M16 3.5l-1.5 2.5" /> <ellipse cx="12" cy="13" rx="4.5" ry="6.5" fill="var(--accent-purple)" opacity="0.3" /> <path d="M7.5 10H3M16.5 10H21M7 13.5H2.5M17 13.5H21.5M7.5 17L4.5 19.5M16.5 17l3 2.5" /> <line x1="12" y1="6.5" x2="12" y2="19.5" /> </svg> <span class="info-title">Stage Moderation & Removals</span> </div> <p class="profile-info-desc">
-            Active stage debaters are <strong>Stage Moderators</strong> with authority to admit waiting users when a
-            stage slot opens and remove stage members.
-          </p> </div> <!-- Quota & Action Details --> <div id="profile-modal-action-box" class="profile-action-box"></div> </div> <div class="profile-modal-footer"> <button id="btn-close-profile-modal" class="btn btn-secondary btn-pill"
-          style="width: 100%; justify-content: center;">
-          Done
-        </button> </div> </div> </div> <!-- Dedicated Admit Participant Modal for Stage Moderators --> <div id="admit-user-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="admit-modal-title" style="z-index: 9999999 !important;"> <div class="modal-content profile-modal-content" style="max-width: 420px; text-align: center;"> <button id="admit-modal-close" class="modal-close-btn" aria-label="Close modal"><i class="bi bi-x-lg" aria-hidden="true"></i></button> <div style="font-size: 2.2rem; margin-bottom: 0.35rem;"><i class="bi bi-mic-fill" aria-hidden="true"></i></div> <h3 id="admit-modal-title"
-        style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.25rem;">
-        Admit Participant to Stage
-      </h3> <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
-        As a Stage Moderator, you have authority to admit this waiting participant to the live active stage.
-      </p> <div
-        style="background: var(--bg-card); border: 3px solid var(--border-dark); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.25rem; text-align: left; box-shadow: var(--shadow-sm);"> <div style="display: flex; align-items: center; gap: 0.85rem;"> <div id="admit-modal-avatar" class="avatar avatar-md avatar-gender-skip">C</div> <div> <div id="admit-modal-username" style="font-weight: 800; font-size: 1rem; color: var(--text-primary);">
-              Cockroach #1007</div> <div id="admit-modal-waittime"
-              style="font-size: 0.75rem; color: var(--accent-purple); font-weight: 700; margin-top: 0.15rem;"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Waiting:
-              02m 15s</div> </div> </div> <div id="admit-modal-comment-container"
-          style="display: none; background: var(--bg-page); border: 3px solid var(--border-dark); padding: 0.55rem 0.85rem; border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--text-primary); margin-top: 0.75rem; box-shadow: var(--shadow-none);"> <span
-            style="color: var(--accent-purple); font-weight: 800; font-size: 0.75rem; display: block; margin-bottom: 0.2rem;"><i class="bi bi-chat-right-text-fill" aria-hidden="true"></i>
-            Quick Comment:</span> <span id="admit-modal-comment-text">""</span> </div> </div> <button id="btn-admit-user-confirm" class="btn btn-primary btn-pill"
-        style="width: 100%; justify-content: center; font-weight: 800; font-size: 0.95rem; padding: 0.75rem 1.25rem;" onclick="window.__handleAdmitClick(this, event)">
-        + Admit to Active Stage
-      </button> </div> </div> <!-- Quick Comment Popup Modal --> <div id="quick-comment-modal" class="modal-backdrop" role="dialog" aria-modal="true"
-    aria-labelledby="comment-modal-title"> <div class="modal-content comment-modal-content"> <button id="comment-modal-close" class="modal-close-btn" aria-label="Close modal"><i class="bi bi-x-lg" aria-hidden="true"></i></button> <div class="comment-modal-header"> <span class="comment-modal-icon"><i class="bi bi-chat-right-text-fill" aria-hidden="true"></i></span> <h4 id="comment-modal-title" class="comment-modal-title">Quick Comment</h4> </div> <div class="comment-modal-body"> <p class="comment-modal-desc">
-          Convey a short note (max 30 characters) to stage moderators while waiting in queue.
-        </p> <div id="comment-modal-status-area" class="comment-modal-status-area"> <!-- Dynamic Form / Lock Timer / Submitted Comment --> </div> </div> <div class="comment-modal-footer"> <button id="btn-close-comment-modal" class="btn btn-secondary btn-pill btn-sm"
-          style="width: 100%; justify-content: center; font-size: 0.78rem;">
-          Done
-        </button> </div> </div> </div> <div id="site-footer"></div> </body> </html>
+        </button> </div> </section> </main> <div id="site-footer"></div>
+</body>
+</html>
