@@ -956,21 +956,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  await initVoiceConnection();
-
   // Force the Join Audio modal to show on every page load to fix browser autoplay policies
   if (permModal) {
     permModal.classList.add('active');
   }
 
+  // Expose a global function for the inline HTML onclick handler to use
+  window._forceMicInit = async () => {
+    storage.saveMicPermission(true);
+    if (WebRTCStub.audioContext && WebRTCStub.audioContext.state === 'suspended') {
+      WebRTCStub.audioContext.resume();
+    }
+    await WebRTCStub.getLocalMicrophone();
+  };
+
   if (btnGrantPerm) {
     btnGrantPerm.addEventListener('click', async () => {
       if (permModal) permModal.classList.remove('active');
-      storage.saveMicPermission(true);
-      // Wait for microphone initialization and audio context unlocking
-      await WebRTCStub.getLocalMicrophone();
+      await window._forceMicInit();
     });
   }
+
+  await initVoiceConnection();
 
   // Mic Button Toggle Mute Logic
   if (micButton) {
