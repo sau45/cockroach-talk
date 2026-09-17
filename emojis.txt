@@ -1,0 +1,103 @@
+﻿          <span style="font-size: 2.5rem; display: block; margin-bottom: 0.5rem;">🪲</span>
+      btnRefresh.textContent = '⏳ Fetching...';
+      btnRefresh.textContent = '🔄 Refresh New ID';
+  toast.innerHTML = `<span>🛡️</span> <span>${escapeHTML(message)}</span>`;
+  console.log('🚀 [Admit] window.__handleAdmitClick triggered!', btnEl);
+  btnEl.textContent = '⏳ Admitting...';
+    console.log('🚀 [Admit] document capture-phase click caught!', admitBtn);
+    if (waitEl) waitEl.textContent = `⏳ Waiting: ${waitTimeText}`;
+      btnAdmitUserConfirm.textContent = '⏳ Admitting...';
+  // Single delegated click handler on the profile modal — handles ALL dynamic buttons inside
+          showToast('⚠️ Not connected to server. Please refresh the page.');
+          <span style="font-size: 0.72rem; color: #10b981;">💬 Comment Submitted:</span>
+    const micStatusLabel = targetMember.isSpeaking ? '⚡ Speaking Live' : (targetMember.isMuted ? '🎙️ Muted' : '🟢 Open Mic');
+    if (nameEl) nameEl.textContent = compactDisplayName + (isSelf ? ' 👤' : '');
+        <span>•</span>
+            ${selfMember && selfMember.isModerator ? '👑 You are a Stage Moderator' : '🎙️ You are a Stage Debater (Mod status after 10m on stage)'}
+              ✕ Remove ${escapeHTML(targetMember.name || 'User')} to Queue
+            ℹ️ Waiting Queue user (Listen only).
+    if (nameEl) nameEl.textContent = compactDisplayName + (isSelf ? ' 👤' : '');
+        <span style="color: var(--text-secondary);">⏳ Waiting in Queue</span>
+        <span>•</span>
+            <span style="color: var(--accent-gold); font-size: 0.75rem; font-weight: 800; display: block; margin-bottom: 0.2rem;">💬 Quick Comment:</span>
+            ✋ Hand Raised
+            💬 Add / Edit Quick Comment
+            ℹ️ Waiting Queue participant (Listen only).
+          🎙️ No debaters currently on stage. Waiting queue members get admitted by Moderators when a slot opens!
+      const selfTag = isSelf ? ' <span class="self-icon-badge" title="Your Account">👤</span>' : '';
+              <span class="queue-user-name">${escapeHTML(compactDisplayName)}${isSelf ? '<span class="self-icon-badge" title="Your Account">👤</span>' : ''}</span>
+              ${qUser.raisedHand ? `<span class="queue-micro-icon" title="Hand Raised">✋</span>` : ''}
+              ${qUser.quickComment ? `<span class="queue-micro-icon" title="Has Comment">💬</span>` : ''}
+        console.log('🚀 [Queue Chip Clicked]', qUser, { isSelfMod, isSelf });
+      stageCapacityBadge.textContent = `🎙️ Stage: ${activeMembers.length}/${capacity}`;
+            quickCommentSent.textContent = `💬 Comment: "${escapeHTML(selfQueueMember.quickComment)}"`;
+            quickCommentLock.textContent = `⏱️ Quick Comment unlocks in ${remainingSec}s`;
+            btnQueueRaiseHand.textContent = '✋ Hand Raised';
+            btnQueueRaiseHand.textContent = '✋ Raise Hand';
+        badgeCap.textContent = `🎙️ Stage: ${activeMembers.length}/${currentRoomState.capacity || 8}`;
+            stageModStatsEl.textContent = `🎙️ Active Stage • ${formatTimeMS(timeRemainingMs)}`;
+            stageModStatsEl.textContent = selfActiveMember.isModerator ? '👑 Stage Moderator' : '🎙️ Active Stage';
+            stageModStatsEl.textContent = `👑 Stage Active • ${formatTimeMS(timeRemainingMs)}`;
+            stageModStatsEl.textContent = `👑 Stage Active`;
+          showToast('🎉 You have been admitted to the Live Active Stage! Unmute your mic to speak.');
+          showToast('ℹ️ You were moved to the Waiting Queue.');
+        showToast(`⚠️ ${message}`);
+          <span style="font-size: 1.25rem;">🪲</span>
+          <span style="font-size: 1.25rem; line-height: 1;">🪲</span>
+            <span style="color: var(--accent-gold); font-weight: 800;">✦ ${compactHandle}</span>
+            ✦
+              <span style="font-size: 1.1rem;">🏠</span> Home
+              <span style="font-size: 1.1rem;">🎙️</span> State Junctions
+              <span style="font-size: 1.1rem;">ℹ️</span> About & Tech
+              <span style="font-size: 1.1rem;">👤</span> Handle: <strong style="color: var(--accent-gold); margin-left: 0.25rem;">${compactHandle}</strong>
+              <span>✦</span> Toggle Theme
+ *   true  → user clicked "Leave & Join"
+ *   false → user clicked "Stay Here", ✕, or backdrop
+  // Intercept click — show conflict modal if user is already in a different junction
+          } catch (_) { /* best-effort — navigation proceeds regardless */ }
+    // No active junction, or same junction → let href navigate normally
+      span.textContent = `✦ ${compactHandle}`;
+  /* Active Junction Tracking — uses localStorage so it's visible across all browser tabs */
+      if (mobileThemeToggleBtn) mobileThemeToggleBtn.innerHTML = '<span>☀️</span> Light Mode';
+      if (mobileThemeToggleBtn) mobileThemeToggleBtn.innerHTML = '<span>🌙</span> Dark Mode';
+          <strong>CockroachTalk</strong> is a state-cockroach-themed live voice-rooms platform engineered for speed, privacy, and frictionless community interaction. Every state has a cockroach room—allowing users to join regional audio junctions like Maharashtra Cockroach, Delhi Cockroach, or Karnataka Cockroach with instant display handles and jump right onto the live stage.
+          Explore State Junctions 🎙️
+          <div style="font-size: 1.8rem; margin-bottom: 0.25rem;">🏛️</div>
+          <div style="font-size: 1.8rem; margin-bottom: 0.25rem;">🎭</div>
+          <div style="font-size: 1.8rem; margin-bottom: 0.25rem;">⚡</div>
+          <div style="font-size: 1.8rem; margin-bottom: 0.25rem;">🎙️</div>
+          <p>Browse 28 state & UT cockroach voice rooms — Maharashtra, Delhi, Karnataka, UP, Tamil Nadu, West Bengal, and more on a single directory grid.</p>
+        <span style="font-size: 2.25rem;">🪲</span>
+          Jump to Junctions Directory 🚀
+          <input type="text" id="search-input" class="input-text" placeholder="🔍 Search state (e.g. Maharashtra, Delhi...)" aria-label="Search State Junction Rooms">
+  <!-- Junction Conflict Modal — shown when user tries to join a different junction while already in one -->
+      <button id="jcm-close" class="modal-close-btn" aria-label="Close">✕</button>
+      <div style="font-size: 2.25rem; margin-bottom: 0.5rem;">🪲</div>
+              🔄 Refresh New ID
+                <span style="color: var(--male); font-size: 1.1rem;">♂</span>
+                <span style="color: var(--female); font-size: 1.1rem;">♀</span>
+                <span style="color: var(--accent-purple); font-size: 1.1rem;">✦</span>
+            Continue to Live Junctions 🚀
+            ←
+            🎙️ Stage: 0/8
+            <h2 class="stage-section-title">🔥 Live Active Stage (Max 8)</h2>
+          <span id="senior-mod-indicator" class="senior-mod-hint" style="display:none;">👑 Senior Mod Removal Lead
+          <h3 class="queue-section-title">⏳ Waiting Queue (<span id="queue-count">0</span>)</h3>
+              <span class="pulse-icon">⏳</span>
+                ✋ Raise Hand
+                💬 Quick Comment
+          ✋ Raise Hand
+      <span style="font-size: 2.25rem; display: block; margin-bottom: 0.5rem;">🎙️</span>
+        Grant Microphone Access ✦
+      <button id="profile-modal-close" class="modal-close-btn" aria-label="Close modal">✕</button>
+      <button id="admit-modal-close" class="modal-close-btn" aria-label="Close modal">✕</button>
+      <div style="font-size: 2.2rem; margin-bottom: 0.35rem;">🎙️</div>
+              style="font-size: 0.75rem; color: var(--accent-gold); font-weight: 700; margin-top: 0.15rem;">⏳ Waiting:
+            style="color: var(--accent-gold); font-weight: 800; font-size: 0.75rem; display: block; margin-bottom: 0.2rem;">💬
+      <button id="comment-modal-close" class="modal-close-btn" aria-label="Close modal">✕</button>
+        <span class="comment-modal-icon">💬</span>
+    console.log('✅ MongoDB connected for CockroachTalk user management.');
+    console.warn('⚠️ MongoDB connection warning:', err.message);
+  console.log(`\n🚀 CockroachTalk Express Server + Socket.io running at http://localhost:${PORT}/\n`);
+    console.error(`\n⚠️ Port ${PORT} is already in use by another process.`);
+      console.log(`\n🚀 CockroachTalk Express Server running at http://localhost:${Number(PORT) + 1}/\n`);

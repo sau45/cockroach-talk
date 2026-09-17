@@ -1,0 +1,97 @@
+/**
+ * CockroachTalk - Theme Design Tokens (Warm Neo-Brutalist)
+ */
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  /* Core Palette */
+  --bg-page: #FDF9F3;
+  --bg-card: #FFFFFF;
+  --bg-sidebar: #0D0D0D;
+  
+  --accent-purple: #7C3AED;
+  --accent-coral: #FF6B6B;
+  
+  --border-dark: #111111;
+  
+  --text-main: #111111;
+  --text-secondary: #333333;
+  --text-inverse: #FFFFFF;
+
+  /* Status Tokens (Thick borders will be applied in components) */
+  --status-quiet-bg: #D1FAE5;
+  --status-quiet-text: #059669;
+  --status-loud-bg: #FEF3C7;
+  --status-loud-text: #D97706;
+
+  /* Geometry & Shadows - Hard offset neo-brutalist */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 8px; /* Brutalist buttons are blocky, not pill */
+  
+  --shadow-none: none;
+  --shadow-sm: 4px 4px 0px var(--accent-purple);
+  --shadow-md: 6px 6px 0px var(--accent-purple);
+  --shadow-lg: 8px 8px 0px var(--accent-purple);
+
+  /* Typography */
+  --font-family-body: 'Inter', sans-serif;
+  --font-family-heading: 'Space Mono', monospace;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2.5rem;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 150ms ease;
+  
+  /* Legacy mappings */
+  --bg-main: var(--bg-page);
+  --bg-inverse: var(--accent-purple);
+  --border-main: var(--accent-purple); /* Thick borders are purple */
+  --border-inverse: var(--text-inverse);
+  --text-primary: var(--text-main);
+  --shadow-main: var(--shadow-sm);
+  --shadow-main-hover: var(--shadow-md);
+  --shadow-inverse: var(--shadow-sm);
+  --shadow-inverse-hover: var(--shadow-md);
+  --accent-gold: var(--accent-purple);
+  --bg-elevated: var(--bg-card);
+  --bg-secondary: var(--bg-card);
+  --border-subtle: var(--accent-purple);
+  --border-glow: var(--accent-purple);
+}
+
+html:not([data-theme="light"]) {
+  /* Dark Mode Palette overrides */
+  --bg-page: #121212;
+  --bg-card: #1B1B1B;
+  --bg-sidebar: #0D0D0D;
+  
+  --accent-purple: #9F75FF;
+  --accent-coral: #FF8A8A;
+  
+  --border-dark: #3F3F46; /* Lighter grey for visible borders in dark mode */
+  
+  --text-main: #EDEDED;
+  --text-secondary: #A1A1AA;
+  --text-inverse: #111111;
+
+  /* Status Tokens for Dark Mode */
+  --status-quiet-bg: #1F3A2E;
+  --status-quiet-text: #6EE7B7;
+  --status-loud-bg: #3D2700;
+  --status-loud-text: #FCD34D;
+  
+  /* Update shadows to be solid and vibrant neo-brutalist in Dark Mode */
+  --shadow-sm: 4px 4px 0px var(--accent-purple);
+  --shadow-md: 6px 6px 0px var(--accent-purple);
+  --shadow-lg: 8px 8px 0px var(--accent-purple);
+}
