@@ -40,6 +40,32 @@ const PORT = process.env.PORT || 8000;
 app.use(cors());
 app.use(express.json());
 
+// Serve TURN credentials securely from environment variables
+app.get('/api/turn-credentials', (req, res) => {
+  const turnUsername = process.env.TURN_USERNAME;
+  const turnCredential = process.env.TURN_CREDENTIAL;
+  
+  if (turnUsername && turnCredential) {
+    res.json({
+      iceServers: [
+        { urls: "stun:stun.relay.metered.ca:80" },
+        { urls: "turn:global.relay.metered.ca:80", username: turnUsername, credential: turnCredential },
+        { urls: "turn:global.relay.metered.ca:80?transport=tcp", username: turnUsername, credential: turnCredential },
+        { urls: "turn:global.relay.metered.ca:443", username: turnUsername, credential: turnCredential },
+        { urls: "turns:global.relay.metered.ca:443?transport=tcp", username: turnUsername, credential: turnCredential }
+      ]
+    });
+  } else {
+    // Fallback if environment variables are not set
+    res.json({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    });
+  }
+});
+
 // Global user state variables
 let memoryCounter = 1001;
 let usersCollection = null;

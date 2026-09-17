@@ -31,8 +31,7 @@ class WebRTCManager {
     this.iceServers = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' }
       ]
     };
   }
@@ -155,6 +154,17 @@ class WebRTCManager {
     this.currentRoomId = roomId;
     this.userProfile = userProfile;
     this.callbacks = { ...this.callbacks, ...callbacks };
+
+    try {
+      const response = await fetch('/api/turn-credentials');
+      const data = await response.json();
+      if (data && data.iceServers) {
+        this.iceServers = { iceServers: data.iceServers };
+        console.log('[WebRTC] Loaded ICE servers from secure endpoint.');
+      }
+    } catch (e) {
+      console.warn('[WebRTC] Failed to load TURN credentials from endpoint:', e);
+    }
 
     const io = window.io || await this.loadSocketIoClient();
     if (!this.socket) {
