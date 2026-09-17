@@ -340,18 +340,22 @@ class WebRTCManager {
     const pc = new RTCPeerConnection(this.iceServers);
     this.peerConnections.set(targetSocketId, pc);
 
-    // Explicitly add audio transceiver for sendrecv
-    try {
-      pc.addTransceiver('audio', { direction: 'sendrecv' });
-    } catch (e) {}
-
-    // Attach local microphone stream if available
+    // Attach local microphone stream if available, otherwise create empty transceiver
+    let trackAdded = false;
     if (this.localStream) {
       const micTrack = this.localStream.getAudioTracks()[0];
       if (micTrack) {
         micTrack.enabled = !this.isMuted;
         pc.addTrack(micTrack, this.localStream);
+        trackAdded = true;
       }
+    }
+
+    // Explicitly add audio transceiver for sendrecv ONLY if no track was added
+    if (!trackAdded) {
+      try {
+        pc.addTransceiver('audio', { direction: 'sendrecv' });
+      } catch (e) {}
     }
 
     // Handle ICE Candidates
