@@ -166,7 +166,7 @@ class WebRTCManager {
   }
 
   // Connect to live voice room immediately and register fresh signaling listeners
-  async connectToRoom(roomId, userProfile, callbacks = {}) {
+  async connectToRoom(roomId, userProfile, password = null, callbacks = {}) {
     this.currentRoomId = roomId;
     this.userProfile = userProfile;
     this.callbacks = { ...this.callbacks, ...callbacks };
@@ -200,15 +200,16 @@ class WebRTCManager {
     this.socket.off('role-assigned');
     this.socket.off('removal-toast');
     this.socket.off('action-error');
+    this.socket.off('join-error');
 
     // Set up Socket.io Signaling Listeners
     this.socket.on('connect', () => {
       console.log('[WebRTC] Connected to signaling server with socket ID:', this.socket.id);
-      this.socket.emit('join-room', { roomId, userProfile });
+      this.socket.emit('join-room', { roomId, userProfile, password });
     });
 
     if (this.socket.connected) {
-      this.socket.emit('join-room', { roomId, userProfile });
+      this.socket.emit('join-room', { roomId, userProfile, password });
     }
 
     // Received room state update (Active debaters + Waiting queue)
@@ -239,6 +240,16 @@ class WebRTCManager {
     this.socket.on('action-error', ({ message }) => {
       if (this.callbacks.onActionError) {
         this.callbacks.onActionError({ message });
+      }
+    });
+
+    // Join error from server
+    this.socket.on('join-error', ({ message }) => {
+      if (this.callbacks.onJoinError) {
+        this.callbacks.onJoinError({ message });
+      } else {
+        alert(message);
+        window.location.href = 'junctions.html';
       }
     });
 

@@ -5,6 +5,8 @@
 
 import { fetchJunctionRooms } from '../utils/api.js';
 import { createJunctionCard } from '../utils/dom.js';
+import { renderCreateRoomModal } from '../partials/modals/createRoomModal.js';
+import { renderPasswordPromptModal } from '../partials/modals/passwordPromptModal.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const gridContainer = document.getElementById('junctions-grid');
@@ -45,14 +47,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       const nameMatch = room.name.toLowerCase().includes(query) || (room.id && room.id.toLowerCase().includes(query));
       
       let categoryMatch = true;
-      if (currentCategory === 'north') {
-        categoryMatch = northStates.includes(room.id);
+      if (currentCategory === 'community') {
+        categoryMatch = !!room.isCustom;
+      } else if (currentCategory === 'north') {
+        categoryMatch = !room.isCustom && northStates.includes(room.id);
       } else if (currentCategory === 'south') {
-        categoryMatch = southStates.includes(room.id);
+        categoryMatch = !room.isCustom && southStates.includes(room.id);
       } else if (currentCategory === 'west') {
-        categoryMatch = westStates.includes(room.id);
+        categoryMatch = !room.isCustom && westStates.includes(room.id);
       } else if (currentCategory === 'east') {
-        categoryMatch = eastStates.includes(room.id);
+        categoryMatch = !room.isCustom && eastStates.includes(room.id);
+      } else if (currentCategory === 'all') {
+        // all could mean both default and custom, or we can just leave categoryMatch = true
       }
 
       return nameMatch && categoryMatch;
@@ -91,4 +97,60 @@ document.addEventListener('DOMContentLoaded', async () => {
       applyFilters();
     });
   });
+
+  // Setup Create Room Modal
+  const btnCreateRoom = document.getElementById('btn-create-room');
+  if (btnCreateRoom) {
+    btnCreateRoom.addEventListener('click', () => {
+      let createModal = document.getElementById('create-room-modal');
+      if (!createModal) {
+        document.body.insertAdjacentHTML('beforeend', renderCreateRoomModal());
+        createModal = document.getElementById('create-room-modal');
+        
+        const closeBtn = document.getElementById('create-room-close');
+        const form = document.getElementById('create-room-form');
+        
+        closeBtn.addEventListener('click', () => createModal.classList.remove('active'));
+        createModal.addEventListener('click', (e) => {
+          if (e.target === createModal) createModal.classList.remove('active');
+        });
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const topic = document.getElementById('create-room-topic').value;
+          const password = document.getElementById('create-room-password').value;
+          const submitBtn = document.getElementById('btn-submit-create-room');
+          
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="bi bi-hourglass-split" aria-hidden="true"></i> Creating...';
+
+          try {
+            const res = await fetch('/api/create-room', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ topic, password })
+            });
+            const data = await res.json();
+            if (data.success) {
+              const qs = password ? `?id=${encodeURIComponent(data.roomId)}&pwd=${encodeURIComponent(password)}` : `?id=${encodeURIComponent(data.roomId)}`;
+              window.location.href = `room.html${qs}`;
+            } else {
+              alert(data.message || 'Failed to create room.');
+              submitBtn.disabled = false;
+              submitBtn.innerHTML = 'Create & Join <i class="bi bi-arrow-right" aria-hidden="true"></i>';
+            }
+          } catch (err) {
+            console.error(err);
+            alert('Error creating room.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Create & Join <i class="bi bi-arrow-right" aria-hidden="true"></i>';
+          }
+        });
+      }
+      createModal.classList.add('active');
+      createModal.style.display = 'flex';
+      // focus input
+      setTimeout(() => { document.getElementById('create-room-topic')?.focus(); }, 100);
+    });
+  }
 });

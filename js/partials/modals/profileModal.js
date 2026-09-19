@@ -12,6 +12,15 @@ export function renderProfileModal() {
           </div> 
         </div> 
         <div class="profile-modal-body"> 
+          <!-- Bio Info Box -->
+          <div id="profile-modal-bio-card" class="profile-info-card" style="display: none; margin-bottom: 1rem;">
+            <div class="profile-info-header">
+              <i class="bi bi-person-lines-fill" style="color: var(--accent-gold); font-size: 1.1rem;"></i>
+              <span class="info-title">Bio</span>
+            </div>
+            <p id="profile-modal-bio-text" class="profile-info-desc" style="font-style: italic; color: var(--text-main);"></p>
+          </div>
+
           <!-- Moderation Info Box --> 
           <div class="profile-info-card"> 
             <div class="profile-info-header"> 

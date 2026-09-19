@@ -98,7 +98,19 @@ const INITIAL_STAGE_SLOTS = 2;
 
 function getJunctionRoom(roomId) {
   if (!junctionRooms.has(roomId)) {
-    junctionRooms.set(roomId, { activeMembers: [], waitingQueue: [] });
+    const isSpecies = SPECIES_LIST.some(sp => sp.id === roomId);
+    if (isSpecies) {
+      const sp = SPECIES_LIST.find(s => s.id === roomId);
+      junctionRooms.set(roomId, { 
+        name: sp.name, 
+        isCustom: false, 
+        password: null, 
+        activeMembers: [], 
+        waitingQueue: [] 
+      });
+    } else {
+      return null;
+    }
   }
   return junctionRooms.get(roomId);
 }
@@ -168,6 +180,9 @@ function buildRoomStatePayload(roomId, now = Date.now()) {
 
   return {
     roomId,
+    name: room.name || roomId,
+    isCustom: !!room.isCustom,
+    hasPassword: !!room.password,
     activeMembers,
     waitingQueue,
     seniorModSocketId: null,
@@ -180,10 +195,27 @@ function broadcastRoomState(roomId) {
   io.to(roomId).emit('room-state-update', payload);
 }
 
-// Periodic tick every 5 seconds to update timers for active members and waiting queue
+// Periodic tick every 5 seconds to update timers and cleanup empty custom rooms
 setInterval(() => {
+  const now = Date.now();
   for (const roomId of junctionRooms.keys()) {
     const room = junctionRooms.get(roomId);
+    
+    // Cleanup empty custom rooms older than 5 minutes
+    if (room.isCustom) {
+      if (room.activeMembers.length === 0 && room.waitingQueue.length === 0) {
+        if (!room.emptySince) {
+          room.emptySince = now;
+        } else if (now - room.emptySince > 5 * 60 * 1000) {
+          junctionRooms.delete(roomId);
+          console.log(`[Room Cleanup] Deleted empty custom room: ${roomId}`);
+          continue; // Skip broadcast
+        }
+      } else {
+        room.emptySince = null; // Reset if someone joins
+      }
+    }
+
     if (room.activeMembers.length > 0 || room.waitingQueue.length > 0) {
       broadcastRoomState(roomId);
     }
@@ -191,36 +223,83 @@ setInterval(() => {
 }, 5000);
 
 /**
- * GET /api/rooms - Deduplicated active participant metrics for all State Cockroach rooms
+ * GET /api/rooms - Deduplicated active participant metrics for all State Cockroach rooms + Custom Rooms
  */
 app.get('/api/rooms', (req, res) => {
-  const rooms = SPECIES_LIST.map((sp) => {
+  const rooms = [];
+
+  // Add default species rooms
+  SPECIES_LIST.forEach((sp) => {
     const jRoom = junctionRooms.get(sp.id);
     const activeCount = jRoom ? jRoom.activeMembers.length : 0;
     const waitingCount = jRoom ? jRoom.waitingQueue.length : 0;
 
-    return {
+    rooms.push({
       id: sp.id,
       name: sp.name,
-      topic: `${sp.name} live debate & voice junction`,
-      listeners: activeCount + waitingCount,
-      speakerCount: activeCount,
-      waitingCount: waitingCount,
-      isLive: (activeCount + waitingCount) > 0,
-      speakers: jRoom ? jRoom.activeMembers.map(u => ({
-        id: u.socketId,
-        tag: u.tag,
-        name: u.displayName,
-        gender: u.gender || 'skip',
-        isSpeaking: u.isSpeaking || false
-      })) : [],
-      allUsers: jRoom ? [...jRoom.activeMembers, ...jRoom.waitingQueue].map(u => ({
-        tag: u.tag,
-        name: u.displayName
-      })) : []
-    };
+      isCustom: false,
+      hasPassword: false,
+      activeMembersCount: activeCount,
+      waitingQueueCount: waitingCount,
+      totalListeners: activeCount + waitingCount,
+      allUsers: jRoom ? [
+        ...jRoom.activeMembers.map(m => ({ name: m.displayName, tag: m.tag })),
+        ...jRoom.waitingQueue.map(q => ({ name: q.displayName, tag: q.tag }))
+      ].filter((v, i, a) => a.findIndex(t => (t.tag === v.tag)) === i).slice(0, 3) : []
+    });
   });
+
+  // Add custom rooms
+  for (const [rId, rData] of junctionRooms.entries()) {
+    if (rData.isCustom) {
+      const activeCount = rData.activeMembers.length;
+      const waitingCount = rData.waitingQueue.length;
+      rooms.push({
+        id: rId,
+        name: rData.name,
+        isCustom: true,
+        hasPassword: !!rData.password,
+        activeMembersCount: activeCount,
+        waitingQueueCount: waitingCount,
+        totalListeners: activeCount + waitingCount,
+        allUsers: [
+          ...rData.activeMembers.map(m => ({ name: m.displayName, tag: m.tag })),
+          ...rData.waitingQueue.map(q => ({ name: q.displayName, tag: q.tag }))
+        ].filter((v, i, a) => a.findIndex(t => (t.tag === v.tag)) === i).slice(0, 3)
+      });
+    }
+  }
+
   res.json(rooms);
+});
+
+/**
+ * POST /api/create-room - Create a new temporary custom room
+ */
+app.post('/api/create-room', (req, res) => {
+  const { topic, password } = req.body;
+  if (!topic || typeof topic !== 'string' || topic.trim().length === 0) {
+    return res.status(400).json({ success: false, message: 'Invalid room topic.' });
+  }
+  
+  if (!password || typeof password !== 'string' || password.trim().length === 0) {
+    return res.status(400).json({ success: false, message: 'Password is required to create a room.' });
+  }
+  
+  // Generate a random room ID
+  const roomId = 'temp-' + Math.random().toString(36).substring(2, 10);
+  
+  junctionRooms.set(roomId, {
+    name: topic.trim().substring(0, 50),
+    isCustom: true,
+    password: password.trim(),
+    activeMembers: [],
+    waitingQueue: [],
+    emptySince: Date.now() // Start counting expiry immediately if no one joins
+  });
+
+  console.log(`[API] Custom room created: ${roomId} (${topic})`);
+  res.json({ success: true, roomId });
 });
 
 let memoryCounter = 1001;
@@ -285,6 +364,44 @@ app.post('/api/heartbeat', async (req, res) => {
 });
 
 /**
+ * GET /api/profile/:tag
+ * Fetch user profile bio and picture
+ */
+app.get('/api/profile/:tag', async (req, res) => {
+  try {
+    const { tag } = req.params;
+    if (usersCollection && tag) {
+      const user = await usersCollection.findOne({ tag: String(tag) }, { projection: { bio: 1, profilePicture: 1, handle: 1 } });
+      if (user) {
+        return res.json({ success: true, bio: user.bio, profilePicture: user.profilePicture, handle: user.handle });
+      }
+    }
+    res.json({ success: false, message: 'User not found' });
+  } catch (error) {
+    res.json({ success: false });
+  }
+});
+
+/**
+ * POST /api/profile
+ * Update user bio and profile picture
+ */
+app.post('/api/profile', async (req, res) => {
+  try {
+    const { tag, bio, profilePicture } = req.body;
+    if (usersCollection && tag) {
+      await usersCollection.updateOne(
+        { tag: String(tag) },
+        { $set: { bio, profilePicture, lastActiveAt: new Date() } }
+      );
+    }
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false });
+  }
+});
+
+/**
  * POST /api/leave-room
  * Immediately removes a user (by tag) from a room's active stage and waiting queue.
  * Called by the junctions page when the user confirms switching junctions, so the
@@ -327,8 +444,20 @@ io.on('connection', (socket) => {
   }
 
   // User joins a voice room / junction debate
-  socket.on('join-room', ({ roomId, userProfile }) => {
+  socket.on('join-room', ({ roomId, userProfile, password }) => {
     currentRoomId = roomId;
+
+    const room = getJunctionRoom(roomId);
+    
+    if (!room) {
+      socket.emit('join-error', { message: 'This room does not exist or has expired.' });
+      return;
+    }
+
+    if (room.isCustom && room.password && room.password !== password) {
+      socket.emit('join-error', { message: 'Incorrect password.' });
+      return;
+    }
 
     const safeTag = userProfile?.tag || Math.floor(1000 + Math.random() * 9000).toString();
     const safeName = userProfile?.displayName || `Cockroach #${safeTag}`;
@@ -346,7 +475,6 @@ io.on('connection', (socket) => {
 
     socket.join(roomId);
 
-    const room = getJunctionRoom(roomId);
     const now = Date.now();
 
     // Check if user is already in activeMembers or waitingQueue (e.g. page refresh / reconnect)

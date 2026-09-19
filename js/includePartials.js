@@ -8,23 +8,12 @@ import { renderFooter } from './partials/footer.js';
 import { storage } from './utils/storage.js';
 import { ICONS } from './utils/icons.js';
 import { initAgeGate } from './components/ageGate.js';
-
-// Modals
-import { renderJunctionConflictModal } from './partials/modals/junctionConflictModal.js';
-import { renderPermissionModal } from './partials/modals/permissionModal.js';
-import { renderProfileModal } from './partials/modals/profileModal.js';
-import { renderAdmitUserModal } from './partials/modals/admitUserModal.js';
-import { renderQuickCommentModal } from './partials/modals/quickCommentModal.js';
+import { initProfileEditor } from './components/profileEditor.js';
+// Modals will now be lazy-loaded by their respective controllers when needed.
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Inject global modals into body before scripts attach listeners
-  const modalHTML = 
-    renderJunctionConflictModal() + 
-    renderPermissionModal() + 
-    renderProfileModal() + 
-    renderAdmitUserModal() + 
-    renderQuickCommentModal();
-  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  // Initialize edit profile logic
+  initProfileEditor();
 
   // Initialize mandatory 18+ age verification consent modal across all entry points
   initAgeGate();

@@ -4,6 +4,8 @@
  */
 
 import { storage } from './storage.js';
+import { renderJunctionConflictModal } from '../partials/modals/junctionConflictModal.js';
+import { renderPasswordPromptModal } from '../partials/modals/passwordPromptModal.js';
 
 /**
  * Escapes HTML characters to prevent XSS vulnerabilities.
@@ -25,7 +27,12 @@ export function escapeHTML(str) {
  */
 function confirmJunctionSwitch(currentRoomName, targetRoomName) {
   return new Promise((resolve) => {
-    const modal      = document.getElementById('junction-conflict-modal');
+    let modal      = document.getElementById('junction-conflict-modal');
+    if (!modal) {
+      document.body.insertAdjacentHTML('beforeend', renderJunctionConflictModal());
+      modal = document.getElementById('junction-conflict-modal');
+    }
+    
     const bodyEl     = document.getElementById('jcm-body');
     const closeBtn   = document.getElementById('jcm-close');
     const cancelBtn  = document.getElementById('jcm-cancel');
@@ -61,6 +68,51 @@ function confirmJunctionSwitch(currentRoomName, targetRoomName) {
     modal.addEventListener('click',       onBackdrop);
 
     modal.classList.add('active');
+  });
+}
+
+/**
+ * Shows a password prompt modal for protected custom rooms.
+ * Resolves to the password (string) or null if cancelled.
+ */
+function promptForPassword(roomName) {
+  return new Promise((resolve) => {
+    let modal = document.getElementById('password-prompt-modal');
+    if (!modal) {
+      document.body.insertAdjacentHTML('beforeend', renderPasswordPromptModal());
+      modal = document.getElementById('password-prompt-modal');
+    }
+    
+    const topicEl = document.getElementById('password-prompt-topic');
+    const closeBtn = document.getElementById('password-prompt-close');
+    const form = document.getElementById('password-prompt-form');
+    const input = document.getElementById('password-prompt-input');
+
+    if (topicEl) topicEl.textContent = `Enter the password for "${roomName}"`;
+    if (input) input.value = '';
+
+    function close(result) {
+      modal.classList.remove('active');
+      form.removeEventListener('submit', onSubmit);
+      closeBtn.removeEventListener('click', onCancel);
+      modal.removeEventListener('click', onBackdrop);
+      resolve(result);
+    }
+
+    function onSubmit(e) {
+      e.preventDefault();
+      close(input.value);
+    }
+    function onCancel() { close(null); }
+    function onBackdrop(e) { if (e.target === modal) close(null); }
+
+    form.addEventListener('submit', onSubmit);
+    closeBtn.addEventListener('click', onCancel);
+    modal.addEventListener('click', onBackdrop);
+
+    modal.classList.add('active');
+    modal.style.display = 'flex';
+    setTimeout(() => { if (input) input.focus(); }, 100);
   });
 }
 
@@ -107,7 +159,7 @@ export function createJunctionCard(room) {
   card.innerHTML = `
     <div class="chip-top" style="justify-content: space-between;">
       <div style="display: flex; align-items: center; gap: 0.75rem;">
-        ${cockroachSVG}
+        ${room.hasPassword ? '<i class="bi bi-lock-fill" style="color: var(--accent-gold); font-size: 1.1rem;" title="Password Protected"></i>' : cockroachSVG}
         <h3 class="chip-title">${escapeHTML(room.name)}</h3>
       </div>
       <div class="status-indicator ${isLive ? 'is-live' : 'is-quiet'}">
@@ -131,13 +183,21 @@ export function createJunctionCard(room) {
   }
 
   // Intercept click — show conflict modal if user is already in a different junction
+  // Also prompt for password if the room is protected
   card.addEventListener('click', async (e) => {
+    e.preventDefault(); // Always prevent default so we can handle async logic
+
     if (isFull) {
-      e.preventDefault();
       alert(`This junction is full (Max 8 participants).`);
       return;
     }
     
+    let pwd = null;
+    if (room.hasPassword) {
+      pwd = await promptForPassword(room.name);
+      if (pwd === null) return; // cancelled
+    }
+
     const activeJunction = storage.getActiveJunction();
 
     if (activeJunction && activeJunction.roomId !== room.id) {
@@ -159,10 +219,14 @@ export function createJunctionCard(room) {
           } catch (_) { /* best-effort — navigation proceeds regardless */ }
         }
         storage.clearActiveJunction();
-        window.location.href = `room.html?id=${encodeURIComponent(room.id)}`;
+        const qs = pwd ? `?id=${encodeURIComponent(room.id)}&pwd=${encodeURIComponent(pwd)}` : `?id=${encodeURIComponent(room.id)}`;
+        window.location.href = `room.html${qs}`;
       }
+    } else {
+      // No active junction, or same junction → navigate normally
+      const qs = pwd ? `?id=${encodeURIComponent(room.id)}&pwd=${encodeURIComponent(pwd)}` : `?id=${encodeURIComponent(room.id)}`;
+      window.location.href = `room.html${qs}`;
     }
-    // No active junction, or same junction → let href navigate normally
   });
 
 

@@ -7,6 +7,7 @@
   width: 340px;
   max-width: 100vw;
   height: 100vh;
+  height: 100dvh;
   background-color: var(--bg-page);
   border-left: 3px solid var(--border-dark);
   box-shadow: -8px 0px 0px var(--accent-purple);
@@ -79,6 +80,8 @@
   box-shadow: var(--shadow-sm);
   max-width: 90%;
   word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   font-size: 0.85rem;
 }
 
@@ -113,6 +116,7 @@
 
 .chat-form input {
   flex: 1;
+  min-width: 0;
   padding: 0.5rem 0.75rem;
   border: 2px solid var(--border-dark);
   border-radius: var(--radius-sm);

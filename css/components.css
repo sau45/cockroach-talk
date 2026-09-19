@@ -639,7 +639,7 @@
   inset: 0;
   background-color: var(--text-inverse);
   backdrop-filter: none !important;
-  z-index: 1000;
+  z-index: 10000001 !important; /* Above site header (10000000) */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -859,6 +859,35 @@
   width: 28px;
   height: 28px;
   font-size: 0.72rem;
+}
+
+/* Profile Picture Upload Styles */
+.avatar-preview-container {
+  width: 80px;
+  height: 80px;
+  border-radius: 0px !important;
+  border: 2px solid var(--border-dark);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.avatar-preview-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.avatar-preview-container i {
+  font-size: 2rem;
+  color: var(--text-muted);
 }
 
 .debater-item-name {
@@ -1896,4 +1925,37 @@
   .queue-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* Edit Profile Modal Gender Selector */
+.gender-selector {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+}
+
+.gender-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 0.35rem;
+  border: 2px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.gender-option:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-glow);
+}
+
+.gender-option.selected {
+  background: var(--bg-hover);
+  border-color: var(--accent-gold);
+  box-shadow: inset 0 0 0 1px var(--accent-gold);
 }

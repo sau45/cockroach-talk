@@ -8,6 +8,19 @@ import { storage } from '../utils/storage.js';
 import { ICONS } from '../utils/icons.js';
 import { escapeHTML } from '../utils/dom.js';
 
+import { renderPermissionModal } from '../partials/modals/permissionModal.js';
+import { renderProfileModal } from '../partials/modals/profileModal.js';
+import { renderAdmitUserModal } from '../partials/modals/admitUserModal.js';
+import { renderQuickCommentModal } from '../partials/modals/quickCommentModal.js';
+
+// Inject room-specific modals synchronously so they are available for DOM queries
+const roomModalHTML = 
+  renderPermissionModal() + 
+  renderProfileModal() + 
+  renderAdmitUserModal() + 
+  renderQuickCommentModal();
+document.body.insertAdjacentHTML('beforeend', roomModalHTML);
+
 /**
  * Formats user handle into compact Co...#1011 style.
  */
@@ -127,6 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const urlParams = new URLSearchParams(window.location.search);
   const roomId = urlParams.get('id') || 'maharashtra';
+  const roomPwd = urlParams.get('pwd') || null;
 
   const formattedRoomNameForStorage = roomId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   storage.setActiveJunction(roomId, formattedRoomNameForStorage);
@@ -542,7 +556,48 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Button clicks handled by delegated listener on profileModal
     }
 
+    // Reset bio
+    const bioCard = document.getElementById('profile-modal-bio-card');
+    if (bioCard) bioCard.style.display = 'none';
+
     profileModal.classList.add('active');
+
+    // Fetch and render profile data asynchronously
+    fetch(`/api/profile/${targetMember.tag}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          if (data.bio && data.bio.trim() !== '') {
+            const bioText = document.getElementById('profile-modal-bio-text');
+            if (bioText) {
+              bioText.textContent = `"${data.bio}"`;
+            }
+            if (bioCard) {
+              bioCard.style.display = 'block';
+            }
+          }
+          if (data.profilePicture && avatarWrap) {
+            const avatarInner = avatarWrap.querySelector('.avatar');
+            if (avatarInner && !avatarInner.querySelector('img.profile-img-overlay')) {
+              const img = document.createElement('img');
+              img.src = data.profilePicture;
+              img.className = 'profile-img-overlay';
+              img.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 0px !important; z-index: 0;';
+              avatarInner.style.position = 'relative'; // ensure img is absolute to this
+              avatarInner.style.overflow = 'hidden'; // clip if needed, though badges might be clipped. 
+              // Better: just prepend it. If badges are outside, they might need z-index.
+              avatarInner.insertBefore(img, avatarInner.firstChild);
+              
+              // Ensure badges stay on top
+              const badges = avatarInner.querySelectorAll('.avatar-mic-badge, .avatar-mod-badge');
+              badges.forEach(b => {
+                b.style.zIndex = '2';
+              });
+            }
+          }
+        }
+      })
+      .catch(err => console.error('Error fetching profile:', err));
   }
 
   // Inside DOMContentLoaded: setup room variables
@@ -629,7 +684,46 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
+    // Reset bio
+    const bioCard = document.getElementById('profile-modal-bio-card');
+    if (bioCard) bioCard.style.display = 'none';
+
     profileModal.classList.add('active');
+
+    // Fetch and render profile data asynchronously
+    fetch(`/api/profile/${targetUser.tag}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          if (data.bio && data.bio.trim() !== '') {
+            const bioText = document.getElementById('profile-modal-bio-text');
+            if (bioText) {
+              bioText.textContent = `"${data.bio}"`;
+            }
+            if (bioCard) {
+              bioCard.style.display = 'block';
+            }
+          }
+          if (data.profilePicture && avatarWrap) {
+            const avatarInner = avatarWrap.querySelector('.avatar');
+            if (avatarInner && !avatarInner.querySelector('img.profile-img-overlay')) {
+              const img = document.createElement('img');
+              img.src = data.profilePicture;
+              img.className = 'profile-img-overlay';
+              img.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 0px !important; z-index: 0;';
+              avatarInner.style.position = 'relative'; 
+              avatarInner.style.overflow = 'hidden'; 
+              avatarInner.insertBefore(img, avatarInner.firstChild);
+              
+              const badges = avatarInner.querySelectorAll('.avatar-mic-badge, .avatar-mod-badge');
+              badges.forEach(b => {
+                b.style.zIndex = '2';
+              });
+            }
+          }
+        }
+      })
+      .catch(err => console.error('Error fetching profile:', err));
   }
 
   let isMuted = true;
@@ -966,7 +1060,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Connect WebRTC & Socket.io Signaling
   async function initVoiceConnection() {
-    await WebRTCStub.connectToRoom(roomId, userProfile, {
+    await WebRTCStub.connectToRoom(roomId, userProfile, roomPwd, {
       onRoomEmoji: ({ socketId, tag, emoji }) => {
         // Prevent double-spawning your own emojis if server echoes them back
         if (socketId === WebRTCStub.socket?.id || socketId === currentSelfSocketId) return;
@@ -976,6 +1070,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         handleIncomingChatMessage(data);
       },
       onRoomStateUpdate: (state) => {
+        if (state.name) {
+          const titleEl = document.querySelector('.header-title');
+          if (titleEl) {
+            titleEl.innerHTML = `${escapeHTML(state.name)} <span style="font-weight: 300; opacity: 0.8; font-size: 0.9em;">Live</span>`;
+          }
+        }
         handleRoomStateUpdate(state);
       },
       onRoleAssigned: ({ role }) => {
