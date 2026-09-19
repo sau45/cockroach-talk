@@ -159,7 +159,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const micButton = document.getElementById('mic-button');
   const micIconContainer = document.getElementById('mic-icon-container');
   const btnRaiseHand = document.getElementById('btn-raise-hand');
+  const btnRecordStage = document.getElementById('btn-record-stage');
   const btnReport = document.getElementById('btn-report-room');
+
+  // Chat UI Elements
+  const btnToggleChat = document.getElementById('btn-toggle-chat');
+  const btnCloseChat = document.getElementById('btn-close-chat');
+  const chatSidebar = document.getElementById('chat-sidebar');
+  const chatForm = document.getElementById('chat-form');
+  const chatInput = document.getElementById('chat-input');
+  const chatMessages = document.getElementById('chat-messages');
+  const chatUnreadBadge = document.getElementById('chat-unread-badge');
 
   const permModal = document.getElementById('permission-modal');
   const btnGrantPerm = document.getElementById('btn-grant-permission');
@@ -187,6 +197,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function closeAdmitModal() {
     if (admitUserModal) admitUserModal.classList.remove('active');
+  }
+
+  // Chat Toggle Logic
+  let isChatOpen = false;
+  if (btnToggleChat) {
+    btnToggleChat.addEventListener('click', () => {
+      isChatOpen = true;
+      if (chatSidebar) chatSidebar.classList.add('open');
+      if (chatUnreadBadge) chatUnreadBadge.style.display = 'none';
+      if (chatInput) chatInput.focus();
+    });
+  }
+
+  if (btnCloseChat) {
+    btnCloseChat.addEventListener('click', () => {
+      isChatOpen = false;
+      if (chatSidebar) chatSidebar.classList.remove('open');
+    });
+  }
+
+  // Chat Form Submission
+  if (chatForm) {
+    chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = chatInput.value.trim();
+      if (text.length > 0) {
+        WebRTCStub.sendChatMessage(text);
+        chatInput.value = '';
+      }
+    });
   }
 
   if (btnCloseProfileModal) btnCloseProfileModal.addEventListener('click', closeProfileModal);
@@ -761,6 +801,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
+    // Toggle Record Button visibility for moderators
+    if (btnRecordStage) {
+      if (isSelfActive && selfActiveMember && selfActiveMember.isModerator) {
+        btnRecordStage.style.display = 'inline-flex';
+      } else {
+        btnRecordStage.style.display = 'none';
+        if (WebRTCStub.isRecording) {
+          WebRTCStub.stopRecording();
+          btnRecordStage.innerHTML = '<i class="bi bi-record-circle" aria-hidden="true"></i> Record';
+          btnRecordStage.classList.remove('btn-recording');
+          btnRecordStage.classList.add('btn-secondary');
+        }
+      }
+    }
+
     // Toggle Mic Button availability and Raise Hand visibility
     if (micButton) {
       const micContainer = micButton.closest('.mic-button-container');
@@ -912,6 +967,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Connect WebRTC & Socket.io Signaling
   async function initVoiceConnection() {
     await WebRTCStub.connectToRoom(roomId, userProfile, {
+      onRoomEmoji: ({ socketId, tag, emoji }) => {
+        // Prevent double-spawning your own emojis if server echoes them back
+        if (socketId === WebRTCStub.socket?.id || socketId === currentSelfSocketId) return;
+        spawnEmoji(emoji);
+      },
+      onChatMessage: (data) => {
+        handleIncomingChatMessage(data);
+      },
       onRoomStateUpdate: (state) => {
         handleRoomStateUpdate(state);
       },
@@ -990,6 +1053,77 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Helper to spawn flying emoji visually
+  function spawnEmoji(emoji) {
+    const overlay = document.getElementById('emoji-overlay');
+    if (!overlay) return;
+    const emojiEl = document.createElement('div');
+    emojiEl.className = 'emoji-floating';
+    emojiEl.textContent = emoji;
+    const leftPercent = 10 + Math.random() * 80;
+    emojiEl.style.left = `${leftPercent}%`;
+    emojiEl.style.bottom = '100px';
+    
+    overlay.appendChild(emojiEl);
+    
+    setTimeout(() => {
+      if (emojiEl.parentNode) emojiEl.parentNode.removeChild(emojiEl);
+    }, 2500);
+  }
+
+  // Handle Incoming Chat Message
+  function handleIncomingChatMessage(data) {
+    if (!chatMessages) return;
+
+    const isSelf = (data.socketId === currentSelfSocketId || (data.tag && String(data.tag) === String(userProfile?.tag)));
+    
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${isSelf ? 'self' : ''}`;
+    
+    const time = new Date(data.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    // Auto linkify URLs
+    const sanitizedText = escapeHTML(data.text);
+    const linkifiedText = sanitizedText.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color: var(--accent-purple); text-decoration: underline;">$1</a>');
+
+    bubble.innerHTML = `
+      <div class="chat-sender">${escapeHTML(data.name)} <span style="color: var(--text-muted); font-size: 0.65rem; font-weight: normal;">${time}</span></div>
+      <div class="chat-text">${linkifiedText}</div>
+    `;
+
+    chatMessages.appendChild(bubble);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // Show unread badge if chat is closed and it's not our own message
+    if (!isChatOpen && !isSelf && chatUnreadBadge) {
+      chatUnreadBadge.style.display = 'flex';
+      
+      // Play a soft notification pop sound if possible (optional)
+      try {
+        const audio = new Audio('/sounds/pop.mp3');
+        audio.volume = 0.2;
+        audio.play().catch(e => {}); // Ignore if autoplay blocked
+      } catch (e) {}
+    }
+  }
+
+  // Emoji Buttons Click Logic
+  const emojiButtons = document.querySelectorAll('.btn-emoji');
+  emojiButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const emoji = btn.getAttribute('data-emoji');
+      if (emoji) {
+        WebRTCStub.sendEmoji(emoji); // Send to server
+        spawnEmoji(emoji);           // Spawn locally INSTANTLY
+        
+        btn.style.transform = 'scale(1.2)';
+        setTimeout(() => {
+          btn.style.transform = 'scale(1)';
+        }, 150);
+      }
+    });
+  });
+
   // Raise Hand Buttons
   if (btnRaiseHand) {
     btnRaiseHand.addEventListener('click', async () => {
@@ -1022,6 +1156,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       storage.clearActiveJunction();
       await WebRTCStub.leaveRoom();
       window.location.href = 'junctions.html';
+    });
+  }
+
+  // Record Stage Logic
+  if (btnRecordStage) {
+    btnRecordStage.addEventListener('click', () => {
+      if (WebRTCStub.isRecording) {
+        WebRTCStub.stopRecording();
+        btnRecordStage.innerHTML = '<i class="bi bi-record-circle" aria-hidden="true"></i> Record';
+        btnRecordStage.classList.remove('btn-recording');
+        btnRecordStage.classList.add('btn-secondary');
+        showToast('Recording stopped and saved to downloads.', 'info');
+      } else {
+        const started = WebRTCStub.startRecording();
+        if (started) {
+          btnRecordStage.innerHTML = '<i class="bi bi-stop-circle-fill" aria-hidden="true"></i> Stop Rec';
+          btnRecordStage.classList.remove('btn-secondary');
+          btnRecordStage.classList.add('btn-recording');
+          showToast('Recording stage audio...', 'success');
+        } else {
+          showToast('Failed to start recording. Please try again.', 'error');
+        }
+      }
     });
   }
 });

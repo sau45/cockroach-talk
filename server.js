@@ -489,6 +489,30 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Relay Emoji Reactions
+  socket.on('send-emoji', ({ emoji }) => {
+    if (currentRoomId && emoji) {
+      io.to(currentRoomId).emit('room-emoji', {
+        socketId: socket.id,
+        tag: currentUserProfile?.tag,
+        emoji: emoji
+      });
+    }
+  });
+
+  // Relay Chat Messages
+  socket.on('send-chat-message', ({ text }) => {
+    if (currentRoomId && typeof text === 'string' && text.trim().length > 0) {
+      io.to(currentRoomId).emit('room-chat-message', {
+        socketId: socket.id,
+        tag: currentUserProfile?.tag,
+        name: currentUserProfile?.displayName || `Cockroach #${currentUserProfile?.tag}`,
+        text: text.trim().substring(0, 500), // Max 500 chars
+        timestamp: Date.now()
+      });
+    }
+  });
+
   // Moderator Admits a Waiting Queue User to Active Stage
   socket.on('admit-user', ({ targetSocketId, targetTag }) => {
     let roomId = currentRoomId;

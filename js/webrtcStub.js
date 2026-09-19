@@ -15,6 +15,12 @@ class WebRTCManager {
     this.currentRoomId = null;
     this.userProfile = null;
     this.isMuted = true;
+    
+    // Recording State
+    this.mediaRecorder = null;
+    this.recordedChunks = [];
+    this.isRecording = false;
+    this.mediaStreamDestination = null;
 
     this.callbacks = {
       onPeerJoined: null,
@@ -25,7 +31,9 @@ class WebRTCManager {
       onRoomStateUpdate: null,
       onRoleAssigned: null,
       onRemovalToast: null,
-      onActionError: null
+      onActionError: null,
+      onRoomEmoji: null,
+      onChatMessage: null
     };
 
     this.iceServers = {
@@ -231,6 +239,20 @@ class WebRTCManager {
     this.socket.on('action-error', ({ message }) => {
       if (this.callbacks.onActionError) {
         this.callbacks.onActionError({ message });
+      }
+    });
+
+    // Room Emoji
+    this.socket.on('room-emoji', (data) => {
+      if (this.callbacks.onRoomEmoji) {
+        this.callbacks.onRoomEmoji(data);
+      }
+    });
+
+    // Room Chat Message
+    this.socket.on('room-chat-message', (data) => {
+      if (this.callbacks.onChatMessage) {
+        this.callbacks.onChatMessage(data);
       }
     });
 
@@ -506,6 +528,20 @@ class WebRTCManager {
     }
   }
 
+  // Send Emoji Reaction
+  async sendEmoji(emoji) {
+    if (this.socket) {
+      this.socket.emit('send-emoji', { emoji });
+    }
+  }
+
+  // Send Text Chat Message
+  async sendChatMessage(text) {
+    if (this.socket) {
+      this.socket.emit('send-chat-message', { text });
+    }
+  }
+
   // Moderator Admits User from Waiting Queue
   async admitUser(targetSocketId, targetTag) {
     if (this.socket) {
@@ -520,12 +556,108 @@ class WebRTCManager {
     }
   }
 
+  // ----- Recording Methods -----
+
+  startRecording() {
+    if (this.isRecording) return false;
+    
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!this.audioContext) {
+        this.audioContext = new AudioCtx();
+      }
+      
+      this.mediaStreamDestination = this.audioContext.createMediaStreamDestination();
+      
+      // Use a DynamicsCompressorNode to prevent digital clipping when multiple people speak at once
+      const compressor = this.audioContext.createDynamicsCompressor();
+      compressor.threshold.setValueAtTime(-24, this.audioContext.currentTime);
+      compressor.knee.setValueAtTime(30, this.audioContext.currentTime);
+      compressor.ratio.setValueAtTime(12, this.audioContext.currentTime);
+      compressor.attack.setValueAtTime(0.003, this.audioContext.currentTime);
+      compressor.release.setValueAtTime(0.25, this.audioContext.currentTime);
+      
+      compressor.connect(this.mediaStreamDestination);
+      
+      // Connect local mic
+      if (this.localStream) {
+        const localSource = this.audioContext.createMediaStreamSource(this.localStream);
+        localSource.connect(compressor);
+      }
+      
+      // Connect all remote streams
+      this.audioElements.forEach((audioEl) => {
+        if (audioEl.srcObject) {
+          try {
+            // Chrome bug workaround: sometimes remote streams need to be routed explicitly
+            const remoteSource = this.audioContext.createMediaStreamSource(audioEl.srcObject);
+            remoteSource.connect(compressor);
+          } catch(e) {
+            console.warn('[WebRTC] Could not connect remote source to recorder:', e);
+          }
+        }
+      });
+      
+      this.recordedChunks = [];
+      // Use highest quality opus codec
+      let mimeType = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/webm';
+      }
+      
+      this.mediaRecorder = new MediaRecorder(this.mediaStreamDestination.stream, { 
+        mimeType: mimeType,
+        audioBitsPerSecond: 128000 // 128kbps high quality audio
+      });
+      
+      this.mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          this.recordedChunks.push(e.data);
+        }
+      };
+      
+      this.mediaRecorder.onstop = () => {
+        const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        document.body.appendChild(a);
+        a.style = 'display: none';
+        a.href = url;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        a.download = `CockroachTalk-Recording-${timestamp}.webm`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        this.recordedChunks = [];
+      };
+      
+      this.mediaRecorder.start();
+      this.isRecording = true;
+      console.log('[WebRTC] Started recording stage audio.');
+      return true;
+    } catch (err) {
+      console.error('[WebRTC] Failed to start recording:', err);
+      return false;
+    }
+  }
+
+  stopRecording() {
+    if (!this.isRecording || !this.mediaRecorder) return;
+    this.mediaRecorder.stop();
+    this.isRecording = false;
+    console.log('[WebRTC] Stopped recording stage audio.');
+  }
+
   // Leave Room & Clean Up Connections
   async leaveRoom() {
     if (this.socket) {
       this.socket.emit('leave-room');
       this.socket.disconnect();
       this.socket = null;
+    }
+
+    if (this.isRecording) {
+      this.stopRecording();
     }
 
     // Stop local microphone tracks

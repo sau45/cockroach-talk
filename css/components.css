@@ -3,6 +3,8 @@
  * File Responsibility: Reusable UI elements (single-line room top bar, compact speaker chips, avatar sizes, buttons, badges, modals).
  */
 
+@import url('chat.css?v=3');
+
 /* Sleek Single-Line Room Top Bar */
 .room-top-bar {
   display: flex;
@@ -372,6 +374,31 @@
   box-shadow: 8px 8px 0px var(--accent-purple);
 }
 
+.btn-recording {
+  background: var(--accent-coral);
+  color: var(--text-inverse);
+  animation: recordPulse 2s infinite;
+}
+
+.btn-recording:hover {
+  background: var(--accent-coral);
+  color: var(--border-dark);
+  transform: translate(-4px, -4px);
+  box-shadow: 8px 8px 0px var(--border-dark);
+}
+
+@keyframes recordPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 107, 107, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0);
+  }
+}
+
 .btn-pill {
   border-radius: 0px !important;
 }
@@ -555,6 +582,19 @@
   border-color: var(--accent-gold);
   box-shadow: var(--shadow-md) !important;
   animation: speakingGlow 1.5s infinite alternate;
+}
+
+.avatar-speaking::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border: 3px solid var(--accent-coral);
+  z-index: -1;
+  pointer-events: none;
+  animation: pulseRing 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
 }
 
 .avatar-gender-male { border-color: var(--text-main); }
@@ -1450,6 +1490,201 @@
 
 .badge-quick-comment {
   font-size: 0.68rem;
+  color: var(--text-secondary);
+  background: var(--bg-main);
+  border: 1px solid var(--border-subtle);
+  padding: 0.15rem 0.4rem;
+  border-radius: 0px !important;
+  margin-top: 0.2rem;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-admit {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.3rem 0.65rem;
+  border-radius: 0px !important;
+  background: var(--bg-main);
+  color: var(--text-inverse);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-admit:hover {
+  box-shadow: var(--shadow-md) !important;
+  transform: scale(1.03);
+}
+
+/* Toast Container & Animated Toast Notification */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.toast-message {
+  pointer-events: auto;
+  background: var(--bg-main);
+  border: 1px solid var(--accent-gold);
+  color: var(--text-primary);
+  padding: 0.75rem 1.15rem;
+  border-radius: 0px !important;
+  font-size: 0.85rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-md) !important;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  animation: slideInUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Quick Comment Modal Styling - Compact & Modern */
+.comment-modal-content {
+  max-width: 350px !important;
+  position: relative;
+  border: 3px solid var(--border-main) !important;
+  background: var(--bg-main);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-radius: 0px !important;
+  padding: 1.35rem;
+  box-shadow: var(--shadow-md) !important;
+  pointer-events: auto !important;
+}
+
+.comment-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.comment-modal-icon {
+  font-size: 1.1rem;
+}
+
+.comment-modal-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.comment-modal-desc {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  margin-bottom: 0.85rem;
+}
+
+.comment-modal-status-area {
+  background: var(--bg-main);
+  border: 3px solid var(--border-main) !important;
+  border-radius: 0px !important;
+  padding: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.comment-modal-form {
+  display: flex;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.comment-modal-input {
+  flex: 1;
+  background: var(--bg-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0px !important;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.76rem;
+  color: var(--text-primary);
+  outline: none;
+  transition: all 0.2s ease;
+  pointer-events: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+.comment-modal-input:focus {
+  border-color: var(--accent-gold);
+  box-shadow: var(--shadow-md) !important;
+}
+
+.btn-queue-chat-icon {
+  background: var(--bg-main);
+  border: 3px solid var(--border-main) !important;
+  color: var(--accent-gold);
+  width: 24px;
+  height: 24px;
+  border-radius: 0px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.7rem;
+  transition: all 0.2s ease;
+  margin-left: 0.35rem;
+  flex-shrink: 0;
+}
+
+.btn-queue-chat-icon:hover {
+  background: var(--bg-main);
+  transform: scale(1.12);
+}
+
+/* ==========================================================================
+   Mobile Responsive Adjustments (Max 639px)
+   ========================================================================== */
+@media (max-width: 639px) {
+  /* Room Top Bar Layout */
+  .room-top-bar {
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+    padding: 0;
+  }
+  
+  .room-top-bar > div:first-child {
+    width: auto;
+    margin-bottom: 0;
+  }
+  
+  /* Make title fit better without clunky wrapping */
+  .room-heading-title {
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* Badges - Remove thick borders and make them sleeker */
+  .badge-capacity,
+  .badge-live {
+    border-width: 1px !important;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    border-radius: var(--radius-sm) !important;
   color: var(--text-secondary);
   background: var(--bg-main);
   border: 1px solid var(--border-subtle);
