@@ -85,6 +85,11 @@ export function initProfileEditor() {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) closeModal();
     });
+    
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+      modalContent.addEventListener('click', e => e.stopPropagation());
+    }
 
     // Gender selection
     genderOptions.forEach(opt => {

@@ -202,15 +202,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnAdmitUserConfirm = document.getElementById('btn-admit-user-confirm');
 
   function closeProfileModal() {
-    if (profileModal) profileModal.classList.remove('active');
+    if (profileModal) {
+      profileModal.classList.remove('active');
+      setTimeout(() => { profileModal.style.display = 'none'; }, 200);
+    }
   }
 
   function closeQuickCommentModal() {
-    if (quickCommentModal) quickCommentModal.classList.remove('active');
+    if (quickCommentModal) {
+      quickCommentModal.classList.remove('active');
+      setTimeout(() => { quickCommentModal.style.display = 'none'; }, 200);
+    }
   }
 
   function closeAdmitModal() {
-    if (admitUserModal) admitUserModal.classList.remove('active');
+    if (admitUserModal) {
+      admitUserModal.classList.remove('active');
+      setTimeout(() => { admitUserModal.style.display = 'none'; }, 200);
+    }
   }
 
   // Chat Toggle Logic
@@ -260,6 +269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       openQueueUserModal(targetUser, true);
       return;
     }
+    modal.style.display = 'flex';
 
     const avatarEl = document.getElementById('admit-modal-avatar');
     const nameEl = document.getElementById('admit-modal-username');
@@ -415,6 +425,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function openQuickCommentModal() {
     const modal = quickCommentModal || document.getElementById('quick-comment-modal');
     if (!modal) return;
+    modal.style.display = 'flex';
     updateQuickCommentModalContent(true);
     modal.classList.add('active');
 
@@ -1130,7 +1141,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (btnGrantPerm) {
     btnGrantPerm.addEventListener('click', async () => {
-      if (permModal) permModal.classList.remove('active');
+      if (permModal) {
+        permModal.classList.remove('active');
+        setTimeout(() => { permModal.style.display = 'none'; }, 200);
+      }
       await window._forceMicInit();
     });
   }

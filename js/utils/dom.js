@@ -51,6 +51,7 @@ function confirmJunctionSwitch(currentRoomName, targetRoomName) {
 
     function close(result) {
       modal.classList.remove('active');
+      setTimeout(() => { modal.style.display = 'none'; }, 200);
       confirmBtn.removeEventListener('click',  onConfirm);
       cancelBtn.removeEventListener('click',   onCancel);
       closeBtn.removeEventListener('click',    onCancel);
@@ -109,6 +110,11 @@ function promptForPassword(roomName) {
     form.addEventListener('submit', onSubmit);
     closeBtn.addEventListener('click', onCancel);
     modal.addEventListener('click', onBackdrop);
+    
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+      modalContent.addEventListener('click', (e) => e.stopPropagation());
+    }
 
     modal.classList.add('active');
     modal.style.display = 'flex';

@@ -110,10 +110,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         const closeBtn = document.getElementById('create-room-close');
         const form = document.getElementById('create-room-form');
         
-        closeBtn.addEventListener('click', () => createModal.classList.remove('active'));
-        createModal.addEventListener('click', (e) => {
-          if (e.target === createModal) createModal.classList.remove('active');
+        closeBtn.addEventListener('click', () => {
+          createModal.classList.remove('active');
+          setTimeout(() => { createModal.style.display = 'none'; }, 200);
         });
+        createModal.addEventListener('click', (e) => {
+          if (e.target === createModal) {
+            createModal.classList.remove('active');
+            setTimeout(() => { createModal.style.display = 'none'; }, 200); // fade out
+          }
+        });
+        
+        const modalContent = createModal.querySelector('.modal-content');
+        if (modalContent) {
+          modalContent.addEventListener('click', (e) => e.stopPropagation());
+        }
 
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
