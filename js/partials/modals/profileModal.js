@@ -36,9 +36,11 @@ export function renderProfileModal() {
           <!-- Quota & Action Details --> 
           <div id="profile-modal-action-box" class="profile-action-box"></div> 
         </div> 
-        <div class="profile-modal-footer"> 
-          <button id="btn-close-profile-modal" class="btn btn-secondary btn-pill"
-            style="width: 100%; justify-content: center;">
+        <div class="profile-modal-footer" style="display: flex; gap: 0.5rem; width: 100%;">
+          <button id="btn-report-user-modal" class="btn btn-outline" style="flex: 1; justify-content: center; color: var(--accent-danger); border-color: var(--accent-danger);">
+            <i class="bi bi-flag-fill" aria-hidden="true"></i> Report
+          </button>
+          <button id="btn-close-profile-modal" class="btn btn-secondary btn-pill" style="flex: 2; justify-content: center;">
             Done
           </button> 
         </div> 

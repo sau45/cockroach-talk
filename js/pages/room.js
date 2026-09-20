@@ -405,6 +405,93 @@ document.addEventListener('DOMContentLoaded', async () => {
         openQuickCommentModal();
         return;
       }
+      // Report button inside profile modal
+      const reportBtn = e.target.closest('#btn-report-user-modal');
+      if (reportBtn) {
+        e.stopPropagation();
+        const reportedTag = reportBtn.getAttribute('data-report-tag');
+        if (!reportedTag) return;
+        
+        const reportOverlay = document.createElement('div');
+        reportOverlay.className = 'modal-backdrop active';
+        reportOverlay.style.zIndex = '10000002'; // Above profile modal
+        reportOverlay.innerHTML = `
+          <div class="modal-content" style="max-width: 420px; background: var(--bg-card); border: 2px solid var(--border-main); border-radius: 0px; box-shadow: var(--shadow-md); padding: 1.5rem;">
+            <div class="modal-header" style="border-bottom: 2px solid var(--border-main); padding-bottom: 1rem; margin-bottom: 1rem;">
+              <h2 style="font-family: var(--font-family-heading); font-size: 1.5rem; margin: 0; color: var(--text-primary);">Report User</h2>
+            </div>
+            <div class="modal-body">
+              <p style="margin-bottom: 0.75rem; font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">Select a reason or type your own. Our moderation team will review this.</p>
+              
+              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+                <button class="btn-report-chip" style="background: var(--bg-main); color: var(--text-primary); border: 1px solid var(--border-main); padding: 4px 10px; font-size: 0.8rem; border-radius: 16px; cursor: pointer;">Abusive Language</button>
+                <button class="btn-report-chip" style="background: var(--bg-main); color: var(--text-primary); border: 1px solid var(--border-main); padding: 4px 10px; font-size: 0.8rem; border-radius: 16px; cursor: pointer;">Spam / Advertising</button>
+                <button class="btn-report-chip" style="background: var(--bg-main); color: var(--text-primary); border: 1px solid var(--border-main); padding: 4px 10px; font-size: 0.8rem; border-radius: 16px; cursor: pointer;">Harassment</button>
+                <button class="btn-report-chip" style="background: var(--bg-main); color: var(--text-primary); border: 1px solid var(--border-main); padding: 4px 10px; font-size: 0.8rem; border-radius: 16px; cursor: pointer;">Trolling / Disruptive</button>
+              </div>
+
+              <textarea id="report-reason-input" rows="3" placeholder="Type reason here..." style="width: 100%; background: var(--bg-main); border: 2px solid var(--border-main); border-radius: 0px; color: var(--text-primary); padding: 12px; font-family: var(--font-family-body); font-size: 0.95rem; resize: vertical; box-sizing: border-box;"></textarea>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
+              <button id="btn-cancel-report" style="background: var(--bg-main); color: var(--text-primary); border: 2px solid var(--border-main); padding: 8px 16px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: var(--font-family-body);">Cancel</button>
+              <button id="btn-submit-report" style="background: var(--accent-danger); color: #fff; border: 2px solid var(--border-main); padding: 8px 16px; font-weight: 700; cursor: pointer; box-shadow: 4px 4px 0px var(--border-main); transition: all 0.2s; font-family: var(--font-family-body);">Submit Report</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(reportOverlay);
+
+        // Add event listeners for chips
+        const reasonInput = document.getElementById('report-reason-input');
+        reportOverlay.querySelectorAll('.btn-report-chip').forEach(chip => {
+          chip.addEventListener('click', (ev) => {
+            reasonInput.value = ev.target.textContent;
+          });
+        });
+
+        document.getElementById('btn-cancel-report').addEventListener('click', () => {
+          reportOverlay.remove();
+        });
+
+        document.getElementById('btn-submit-report').addEventListener('click', () => {
+          const reason = document.getElementById('report-reason-input').value.trim();
+          if (!reason) {
+            showToast('<i class="bi bi-exclamation-triangle-fill"></i> Please enter a reason.');
+            return;
+          }
+          
+          reportOverlay.remove();
+          reportBtn.disabled = true;
+          reportBtn.innerHTML = '<i class="bi bi-hourglass-split"></i>...';
+          
+          fetch('/api/report-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reporterTag: userProfile.tag,
+              reportedTag: reportedTag,
+              reason: reason
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              showToast('<i class="bi bi-check-circle-fill" style="color:var(--accent-success)"></i> User reported successfully.');
+              closeProfileModal();
+            } else {
+              showToast('<i class="bi bi-exclamation-triangle-fill" style="color:var(--accent-danger)"></i> Failed to report: ' + data.message);
+              reportBtn.disabled = false;
+              reportBtn.innerHTML = '<i class="bi bi-flag-fill"></i> Report';
+            }
+          })
+          .catch(err => {
+            console.error('Report error:', err);
+            showToast('<i class="bi bi-exclamation-triangle-fill" style="color:var(--accent-danger)"></i> Failed to submit report.');
+            reportBtn.disabled = false;
+            reportBtn.innerHTML = '<i class="bi bi-flag-fill"></i> Report';
+          });
+        });
+        return;
+      }
     });
   }
 
@@ -571,7 +658,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const bioCard = document.getElementById('profile-modal-bio-card');
     if (bioCard) bioCard.style.display = 'none';
 
-    profileModal.classList.add('active');
+    const btnReport = document.getElementById('btn-report-user-modal');
+    if (btnReport) {
+      if (isSelf) {
+        btnReport.style.display = 'none';
+      } else {
+        btnReport.style.display = 'flex';
+        btnReport.setAttribute('data-report-tag', targetMember.tag);
+        btnReport.disabled = false;
+        btnReport.innerHTML = '<i class="bi bi-flag-fill"></i> Report';
+      }
+    }
+
+    profileModal.style.display = 'flex';
+    setTimeout(() => profileModal.classList.add('active'), 10);
 
     // Fetch and render profile data asynchronously
     fetch(`/api/profile/${targetMember.tag}`)

@@ -69,6 +69,7 @@ app.get('/api/turn-credentials', (req, res) => {
 // Global user state variables
 let usersCollection = null;
 let countersCollection = null;
+let reportsCollection = null;
 
 // Initialize MongoDB Connection if MONGODB_URI is specified
 if (process.env.MONGODB_URI) {
@@ -77,6 +78,7 @@ if (process.env.MONGODB_URI) {
     const db = mongoClient.db(process.env.MONGODB_DB || 'cockroachtalk');
     usersCollection = db.collection('users');
     countersCollection = db.collection('counters');
+    reportsCollection = db.collection('reports');
     
     // Ensure the global counter document exists
     countersCollection.updateOne(
@@ -274,6 +276,168 @@ app.get('/api/rooms', (req, res) => {
 });
 
 /**
+ * Admin Authentication Middleware
+ */
+function requireAdmin(req, res, next) {
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const providedPassword = req.headers['x-admin-password'];
+  if (providedPassword === adminPassword) {
+    next();
+  } else {
+    res.status(401).json({ success: false, message: 'Unauthorized: Invalid admin password.' });
+  }
+}
+
+/**
+ * GET /api/admin/reports - Fetch pending reports
+ */
+app.get('/api/admin/reports', requireAdmin, async (req, res) => {
+  if (!reportsCollection) return res.json({ success: true, reports: [] });
+  try {
+    const reports = await reportsCollection.find({ status: 'pending' }).sort({ timestamp: -1 }).toArray();
+    res.json({ success: true, reports });
+  } catch (err) {
+    console.error('[Admin API] Error fetching reports:', err);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+});
+
+/**
+ * POST /api/admin/ban - Ban a user and kick them
+ */
+app.post('/api/admin/ban', requireAdmin, async (req, res) => {
+  const { targetTag } = req.body;
+  if (!targetTag) return res.status(400).json({ success: false, message: 'Missing target tag.' });
+  
+  try {
+    if (usersCollection) {
+      await usersCollection.updateOne({ tag: targetTag }, { $set: { isBanned: true } });
+    }
+    if (reportsCollection) {
+      await reportsCollection.updateMany({ reportedTag: targetTag }, { $set: { status: 'banned' } });
+    }
+    
+    // Kick user from any active rooms
+    kickBannedUser(targetTag);
+    
+    res.json({ success: true, message: `User ${targetTag} banned successfully.` });
+  } catch (err) {
+    console.error('[Admin API] Error banning user:', err);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+});
+
+/**
+ * POST /api/admin/dismiss - Dismiss a report
+ */
+app.post('/api/admin/dismiss', requireAdmin, async (req, res) => {
+  const { reportId } = req.body;
+  if (!reportId) return res.status(400).json({ success: false, message: 'Missing reportId.' });
+  
+  try {
+    if (reportsCollection) {
+      const { ObjectId } = await import('mongodb');
+      await reportsCollection.updateOne({ _id: new ObjectId(reportId) }, { $set: { status: 'dismissed' } });
+    }
+    res.json({ success: true, message: `Report dismissed.` });
+  } catch (err) {
+    console.error('[Admin API] Error dismissing report:', err);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+});
+
+/**
+ * GET /api/admin/banned - Fetch all banned users
+ */
+app.get('/api/admin/banned', requireAdmin, async (req, res) => {
+  if (!usersCollection) return res.json({ success: true, bannedUsers: [] });
+  try {
+    const bannedUsers = await usersCollection.find({ isBanned: true }).sort({ _id: -1 }).toArray();
+    res.json({ success: true, bannedUsers });
+  } catch (err) {
+    console.error('[Admin API] Error fetching banned users:', err);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+});
+
+/**
+ * POST /api/admin/unban - Unban a user
+ */
+app.post('/api/admin/unban', requireAdmin, async (req, res) => {
+  const { targetTag } = req.body;
+  if (!targetTag) return res.status(400).json({ success: false, message: 'Missing target tag.' });
+  
+  try {
+    if (usersCollection) {
+      await usersCollection.updateOne({ tag: targetTag }, { $set: { isBanned: false } });
+    }
+    res.json({ success: true, message: `User ${targetTag} unbanned successfully.` });
+  } catch (err) {
+    console.error('[Admin API] Error unbanning user:', err);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+});
+
+function kickBannedUser(tag) {
+  for (const [roomId, room] of junctionRooms.entries()) {
+    let kicked = false;
+    
+    const activeIdx = room.activeMembers.findIndex(m => m.tag === tag);
+    if (activeIdx !== -1) {
+      const socketId = room.activeMembers[activeIdx].socketId;
+      room.activeMembers.splice(activeIdx, 1);
+      io.to(socketId).emit('banned', { message: 'You have been banned.' });
+      io.sockets.sockets.get(socketId)?.disconnect(true);
+      kicked = true;
+    }
+    
+    const waitIdx = room.waitingQueue.findIndex(m => m.tag === tag);
+    if (waitIdx !== -1) {
+      const socketId = room.waitingQueue[waitIdx].socketId;
+      room.waitingQueue.splice(waitIdx, 1);
+      io.to(socketId).emit('banned', { message: 'You have been banned.' });
+      io.sockets.sockets.get(socketId)?.disconnect(true);
+      kicked = true;
+    }
+    
+    if (kicked) {
+      broadcastRoomState(roomId);
+    }
+  }
+}
+
+/**
+ * POST /api/report-user - Submit a user report to MongoDB
+ */
+app.post('/api/report-user', async (req, res) => {
+  const { reporterTag, reportedTag, reason } = req.body;
+  
+  if (!reporterTag || !reportedTag || !reason) {
+    return res.status(400).json({ success: false, message: 'Missing required report fields.' });
+  }
+
+  if (reportsCollection) {
+    try {
+      await reportsCollection.insertOne({
+        reporterTag,
+        reportedTag,
+        reason,
+        timestamp: new Date(),
+        status: 'pending'
+      });
+      return res.json({ success: true, message: 'Report submitted successfully.' });
+    } catch (err) {
+      console.error('[API] Error saving report:', err);
+      return res.status(500).json({ success: false, message: 'Internal server error.' });
+    }
+  } else {
+    // Fallback if MongoDB is not connected
+    console.warn('[API] Report received but MongoDB is not connected:', { reporterTag, reportedTag, reason });
+    return res.json({ success: true, message: 'Report submitted (mocked).' });
+  }
+});
+
+/**
  * POST /api/create-room - Create a new temporary custom room
  */
 app.post('/api/create-room', (req, res) => {
@@ -352,6 +516,11 @@ app.post('/api/heartbeat', async (req, res) => {
   try {
     const { tag } = req.body;
     if (usersCollection && tag) {
+      const user = await usersCollection.findOne({ tag: String(tag) });
+      if (user && user.isBanned) {
+        return res.json({ success: true, isBanned: true });
+      }
+
       await usersCollection.updateOne(
         { tag: String(tag) },
         { $set: { lastActiveAt: new Date() } }
@@ -390,6 +559,11 @@ app.post('/api/profile', async (req, res) => {
   try {
     const { tag, bio, profilePicture } = req.body;
     if (usersCollection && tag) {
+      const user = await usersCollection.findOne({ tag: String(tag) });
+      if (user && user.isBanned) {
+        return res.json({ success: false, message: 'User is banned' });
+      }
+      
       await usersCollection.updateOne(
         { tag: String(tag) },
         { $set: { bio, profilePicture, lastActiveAt: new Date() } }
@@ -444,8 +618,19 @@ io.on('connection', (socket) => {
   }
 
   // User joins a voice room / junction debate
-  socket.on('join-room', ({ roomId, userProfile, password }) => {
+  socket.on('join-room', async ({ roomId, userProfile, password }) => {
     currentRoomId = roomId;
+
+    if (usersCollection && userProfile?.tag) {
+      try {
+        const userRec = await usersCollection.findOne({ tag: String(userProfile.tag) });
+        if (userRec && userRec.isBanned) {
+          socket.emit('banned', { message: 'You have been banned from CockroachTalk.' });
+          socket.disconnect(true);
+          return;
+        }
+      } catch (err) {}
+    }
 
     const room = getJunctionRoom(roomId);
     
@@ -560,12 +745,31 @@ io.on('connection', (socket) => {
       const member = findBySocket(room.activeMembers, currentUserProfile.tag);
       if (member) {
         member.isMuted = isMuted;
-        member.isSpeaking = !isMuted;
+        if (isMuted) {
+          member.isSpeaking = false;
+        }
         io.to(currentRoomId).emit('peer-mute-changed', {
           socketId: socket.id,
           tag: currentUserProfile.tag,
           isMuted,
-          isSpeaking: !isMuted
+          isSpeaking: member.isSpeaking
+        });
+      }
+    }
+  });
+
+  // Dynamic Speaking State
+  socket.on('speaking-state', ({ isSpeaking }) => {
+    if (currentUserProfile && currentRoomId) {
+      const room = getJunctionRoom(currentRoomId);
+      const member = findBySocket(room.activeMembers, currentUserProfile.tag);
+      if (member && !member.isMuted) {
+        member.isSpeaking = isSpeaking;
+        io.to(currentRoomId).emit('peer-mute-changed', {
+          socketId: socket.id,
+          tag: currentUserProfile.tag,
+          isMuted: member.isMuted,
+          isSpeaking: member.isSpeaking
         });
       }
     }

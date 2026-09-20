@@ -128,6 +128,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
+          
+          if (window.isUserBanned) {
+            if (window.showBannedModal) window.showBannedModal();
+            return;
+          }
+
           const topic = document.getElementById('create-room-topic').value;
           const password = document.getElementById('create-room-password').value;
           const submitBtn = document.getElementById('btn-submit-create-room');

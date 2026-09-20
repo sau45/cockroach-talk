@@ -63,7 +63,14 @@ class WebRTCManager {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return;
       
-      this.audioContext = new AudioCtx();
+      if (!this.audioContext) {
+        this.audioContext = new AudioCtx();
+      }
+      
+      if (this.audioContext.state === 'suspended') {
+        this.audioContext.resume().catch(() => {});
+      }
+      
       const source = this.audioContext.createMediaStreamSource(this.localStream);
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;
@@ -75,6 +82,15 @@ class WebRTCManager {
       const checkVolume = () => {
         if (!this.analyser || this.isMuted) {
           if (this.callbacks.onLocalSpeakingState) this.callbacks.onLocalSpeakingState(false);
+          
+          if (this.lastIsSpeaking !== false) {
+            this.lastIsSpeaking = false;
+            if (this.socket) {
+              this.socket.emit('speaking-state', { isSpeaking: false });
+            }
+          }
+          
+          requestAnimationFrame(checkVolume);
           return;
         }
 
@@ -88,6 +104,13 @@ class WebRTCManager {
 
         if (this.callbacks.onLocalSpeakingState) {
           this.callbacks.onLocalSpeakingState(isSpeaking);
+        }
+        
+        if (this.lastIsSpeaking !== isSpeaking) {
+          this.lastIsSpeaking = isSpeaking;
+          if (this.socket) {
+            this.socket.emit('speaking-state', { isSpeaking });
+          }
         }
 
         requestAnimationFrame(checkVolume);
@@ -201,6 +224,7 @@ class WebRTCManager {
     this.socket.off('removal-toast');
     this.socket.off('action-error');
     this.socket.off('join-error');
+    this.socket.off('banned');
 
     // Set up Socket.io Signaling Listeners
     this.socket.on('connect', () => {
@@ -249,6 +273,16 @@ class WebRTCManager {
         this.callbacks.onJoinError({ message });
       } else {
         alert(message);
+        window.location.href = 'junctions.html';
+      }
+    });
+
+    // Banned event from server
+    this.socket.on('banned', ({ message }) => {
+      if (window.showBannedModal) {
+        window.showBannedModal(message);
+      } else {
+        alert(message || 'You have been banned from CockroachTalk.');
         window.location.href = 'junctions.html';
       }
     });

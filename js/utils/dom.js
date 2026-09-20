@@ -193,6 +193,11 @@ export function createJunctionCard(room) {
   card.addEventListener('click', async (e) => {
     e.preventDefault(); // Always prevent default so we can handle async logic
 
+    if (window.isUserBanned) {
+      if (window.showBannedModal) window.showBannedModal();
+      return;
+    }
+
     if (isFull) {
       alert(`This junction is full (Max 8 participants).`);
       return;
