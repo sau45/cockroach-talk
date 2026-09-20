@@ -15,6 +15,7 @@ class WebRTCManager {
     this.currentRoomId = null;
     this.userProfile = null;
     this.isMuted = true;
+    this.isVideoEnabled = false;
     
     // Recording State
     this.mediaRecorder = null;
@@ -122,40 +123,69 @@ class WebRTCManager {
     }
   }
 
-  // Synchronize local microphone track to all active peer connections
+  // Synchronize local microphone and camera tracks to all active peer connections
   async syncMicTracksToAllPeers() {
     if (!this.localStream) return;
     const micTrack = this.localStream.getAudioTracks()[0];
-    if (!micTrack) return;
-
-    micTrack.enabled = !this.isMuted;
+    const videoTrack = this.localStream.getVideoTracks()[0];
+    
+    if (micTrack) micTrack.enabled = !this.isMuted;
+    if (videoTrack) videoTrack.enabled = this.isVideoEnabled;
 
     for (const [socketId, pc] of this.peerConnections.entries()) {
       try {
         const senders = pc.getSenders();
-        const audioSender = senders.find(s => s.track && s.track.kind === 'audio') || senders.find(s => !s.track);
-        if (audioSender) {
-          await audioSender.replaceTrack(micTrack);
-        } else {
-          pc.addTrack(micTrack, this.localStream);
-          // BUGFIX: Renegotiate explicitely because a new track was added asynchronously after initial SDP handshake
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          this.socket.emit('signal-offer', {
-            targetSocketId: socketId,
-            offer: pc.localDescription,
-            senderProfile: this.userProfile
-          });
+        
+        // Sync Audio
+        if (micTrack) {
+          const audioSender = senders.find(s => s.track && s.track.kind === 'audio') || senders.find(s => !s.track);
+          if (audioSender) {
+            await audioSender.replaceTrack(micTrack);
+          } else {
+            pc.addTrack(micTrack, this.localStream);
+            // BUGFIX: Renegotiate explicitely because a new track was added asynchronously after initial SDP handshake
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            this.socket.emit('signal-offer', {
+              targetSocketId: socketId,
+              offer: pc.localDescription,
+              senderProfile: this.userProfile
+            });
+          }
         }
+        
+        // Sync Video
+        if (videoTrack) {
+          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+          if (videoSender) {
+            await videoSender.replaceTrack(videoTrack);
+          } else {
+            pc.addTrack(videoTrack, this.localStream);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            this.socket.emit('signal-offer', {
+              targetSocketId: socketId,
+              offer: pc.localDescription,
+              senderProfile: this.userProfile
+            });
+          }
+        }
+        
       } catch (e) {
         console.warn('[WebRTC] Track sync error for socket:', socketId, e);
       }
     }
   }
 
-  // Request user microphone audio stream
-  async getLocalMicrophone() {
-    if (this.localStream) return this.localStream;
+  // Request user microphone and/or camera stream
+  async getLocalMicrophone(forceReinit = false) {
+    if (this.localStream && !forceReinit) return this.localStream;
+    
+    // Stop old tracks if reinitializing
+    if (this.localStream && forceReinit) {
+        this.localStream.getTracks().forEach(track => track.stop());
+    }
+
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -163,14 +193,14 @@ class WebRTCManager {
           noiseSuppression: true,
           autoGainControl: true
         },
-        video: false
+        video: this.isVideoEnabled
       });
       
       this.setupAudioMeter();
       await this.syncMicTracksToAllPeers();
       return this.localStream;
     } catch (err) {
-      console.warn('[WebRTC] Microphone access not granted or unavailable:', err.message);
+      console.warn('[WebRTC] Media access not granted or unavailable:', err.message);
       return null;
     }
   }
@@ -413,15 +443,18 @@ class WebRTCManager {
     const pc = new RTCPeerConnection(this.iceServers);
     this.peerConnections.set(targetSocketId, pc);
 
-    // Attach local microphone stream if available, otherwise create empty transceiver
+    // Attach local microphone/video stream if available, otherwise create empty transceiver
     let trackAdded = false;
     if (this.localStream) {
-      const micTrack = this.localStream.getAudioTracks()[0];
-      if (micTrack) {
-        micTrack.enabled = !this.isMuted;
-        pc.addTrack(micTrack, this.localStream);
+      this.localStream.getTracks().forEach(track => {
+        if (track.kind === 'audio') {
+            track.enabled = !this.isMuted;
+        } else if (track.kind === 'video') {
+            track.enabled = this.isVideoEnabled;
+        }
+        pc.addTrack(track, this.localStream);
         trackAdded = true;
-      }
+      });
     }
 
     // Explicitly add audio transceiver for sendrecv ONLY if no track was added
@@ -531,8 +564,8 @@ class WebRTCManager {
   async setMuteState(shouldMute) {
     this.isMuted = shouldMute;
     
-    if (!this.localStream && !shouldMute) {
-      await this.getLocalMicrophone();
+    if (!this.localStream && (!shouldMute || this.isVideoEnabled)) {
+      await this.getLocalMicrophone(true);
     }
 
     if (this.audioContext && this.audioContext.state === 'suspended') {
@@ -545,6 +578,27 @@ class WebRTCManager {
       this.socket.emit('mute-toggle', { isMuted: shouldMute });
     }
     return !shouldMute;
+  }
+
+  // Toggle Video Camera
+  async setVideoState(shouldEnable) {
+    this.isVideoEnabled = shouldEnable;
+
+    // Force reinit to grab camera stream
+    await this.getLocalMicrophone(true);
+
+    if (this.socket) {
+      this.socket.emit('video-toggle', { isVideoEnabled: shouldEnable });
+    }
+    return shouldEnable;
+  }
+
+  getStreamFor(socketId) {
+    if (!socketId || socketId === this.socket?.id) {
+        return this.localStream;
+    }
+    const audioEl = this.audioElements.get(socketId);
+    return audioEl ? audioEl.srcObject : null;
   }
 
   // Publish Microphone (Unmute)

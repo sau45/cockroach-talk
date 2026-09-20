@@ -1,41 +1,154 @@
-<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Live Voice Room | CockroachTalk</title> <meta name="description" content="Live voice room stage on CockroachTalk. Listen and talk live with WebRTC audio."> <link rel="stylesheet" href="css/theme.css"> <link rel="stylesheet" href="css/base.css"> <link rel="stylesheet" href="css/components.css"> <link rel="stylesheet" href="css/layout.css"> <link rel="stylesheet" href="css/animations.css"> <link rel="stylesheet" href="css/chat.css"> <!-- Bootstrap Icons CDN --> <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"> <script src="/socket.io/socket.io.js"></script> <script type="module" src="js/includePartials.js"></script> <script type="module" src="js/pages/room.js?v=20260919_v9"></script> </head> <body> <div id="emoji-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden;"></div> <div id="site-header"></div> <main class="site-main"> <section class="site-container" style="padding-top: 0.75rem;"> <!-- Toast Container for Real-time Notifications --> <div id="toast-container" class="toast-container"></div> <!-- Sleek Compact Single-Line Room Top Bar --> <div class="room-top-bar"> <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;"> <a href="junctions.html" class="btn-back-pill" title="Back to Junctions"> <i class="bi bi-arrow-left" aria-hidden="true"></i> </a> <h1 id="room-title" class="room-heading-title">State Cockroach</h1> </div> <div style="display: flex; align-items: center; gap: 0.5rem;"> <div class="badge-capacity" id="stage-capacity-badge"> <i class="bi bi-mic-fill" aria-hidden="true"></i> Stage: 0/8 </div> </div> </div> <!-- Active Stage Grid --> <div class="spaces-stage-container"> <div class="stage-header"> <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;"> <h2 class="stage-section-title">🔥 Speaker</h2> <span id="stage-mod-stats" class="stage-mod-stats"></span> </div> <span id="senior-mod-indicator" class="senior-mod-hint" style="display:none;"><i class="bi bi-star-fill" aria-hidden="true"></i> Senior Mod Removal Lead
-            Active</span> </div> <div id="stage-grid" class="spaces-stage-grid"> <!-- Rendered dynamically by room.js --> </div> </div> <!-- Waiting Queue Section -->  <div class="waiting-queue-container">
-    <div class="queue-header">
-      <h3 class="queue-section-title"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Waiting Queue (<span id="queue-count">0</span>)</h3>
-      <span class="queue-subtext">Waiting users get admitted by Moderators when a stage slot opens</span>
-    </div>
+<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Live Voice Room | CockroachTalk</title> <meta name="description" content="Live voice room stage on CockroachTalk. Listen and talk live with WebRTC audio."> <link rel="stylesheet" href="css/theme.css"> <link rel="stylesheet" href="css/base.css"> <link rel="stylesheet" href="css/components.css"> <link rel="stylesheet" href="css/layout.css"> <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/chat.css?v=3"> <!-- Bootstrap Icons CDN --> <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"> <script src="/socket.io/socket.io.js"></script> <script type="module" src="js/includePartials.js"></script> <script type="module" src="js/pages/room.js?v=20260920_v14"></script> </head> <body> <div id="emoji-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden;"></div> <div id="site-header"></div> <main class="site-main"> <section class="site-container" style="padding-top: 0.75rem;">
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
 
-    <!-- Queue Users Grid -->
-    <div id="queue-grid" class="queue-grid">
-      <!-- Rendered dynamically by room.js -->
+  <!-- Room Top Bar -->
+  <div class="room-top-bar">
+    <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+      <a href="junctions.html" class="btn-back-pill" title="Back to Junctions"><i class="bi bi-arrow-left" aria-hidden="true"></i></a>
+      <h1 id="room-title" class="room-heading-title">State Cockroach</h1>
     </div>
-  </div> <!-- Emoji Picker Bar --> <div class="emoji-picker-bar" style="display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 0.75rem; overflow-x: auto; padding: 0.2rem;"> <button class="btn-emoji" data-emoji="❤️" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s;">❤️</button> <button class="btn-emoji" data-emoji="👏" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s;">👏</button> <button class="btn-emoji" data-emoji="😂" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s;">😂</button> <button class="btn-emoji" data-emoji="👎" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s;">👎</button> <button class="btn-emoji" data-emoji="💯" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s;">💯</button> </div> <!-- Simple Clean In-Page Room Controls Bar --> <div class="room-controls-bar"> 
-        <button id="btn-toggle-chat" class="btn btn-secondary btn-pill" style="padding: 0.55rem 1rem; font-size: 0.75rem; font-weight: 700; position: relative;">
-          <i class="bi bi-chat-left-dots-fill" aria-hidden="true"></i> Chat
-          <span id="chat-unread-badge" style="display: none; position: absolute; top: -5px; right: -5px; background: var(--accent-coral); color: white; border-radius: 50%; font-size: 0.6rem; width: 18px; height: 18px; align-items: center; justify-content: center; font-weight: 900; border: 2px solid var(--bg-card);">!</span>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <div class="badge-capacity" id="stage-capacity-badge"><i class="bi bi-mic-fill" aria-hidden="true"></i> Stage: 0/8</div>
+    </div>
+  </div>
+
+  <!-- ====== TWO-COLUMN: Stage (left) + Junctions Sidebar (right) ====== -->
+  <div class="room-page-layout">
+
+    <!-- LEFT: Stage + Queue -->
+    <div class="room-main-col">
+
+      <!-- Active Stage -->
+      <div class="spaces-stage-container">
+        <div class="stage-header">
+          <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+            <h2 class="stage-section-title">🔥 Speaker</h2>
+            <span id="stage-mod-stats" class="stage-mod-stats"></span>
+          </div>
+          <span id="senior-mod-indicator" class="senior-mod-hint" style="display:none;"><i class="bi bi-star-fill" aria-hidden="true"></i> Senior Mod Removal Lead Active</span>
+        </div>
+        <div id="stage-grid" class="spaces-stage-grid">
+          <!-- Rendered dynamically by room.js -->
+        </div>
+      </div>
+
+      <!-- Waiting Queue -->
+      <div class="waiting-queue-container">
+        <div class="queue-header">
+          <h3 class="queue-section-title"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Waiting Queue (<span id="queue-count">0</span>)</h3>
+        </div>
+        <div id="queue-grid" class="queue-grid">
+          <!-- Rendered dynamically by room.js -->
+        </div>
+      </div>
+
+    </div> <!-- /room-main-col -->
+
+    <!-- RIGHT: Junctions Sidebar (desktop only) -->
+    <aside class="junctions-sidebar" id="junctions-sidebar">
+      <div class="junctions-sidebar-header">
+        <i class="bi bi-grid-3x3-gap-fill"></i>
+        <span>All Junctions</span>
+      </div>
+      <div class="junctions-search-box" style="padding: 0.5rem; border-bottom: 2px solid var(--border-main); flex-shrink: 0;">
+        <input type="text" id="junction-search-input" placeholder="Search junctions..." style="width: 100%; padding: 0.4rem 0.6rem; background: var(--bg-main); border: 2px solid var(--border-subtle); color: var(--text-main); font-size: 0.85rem; border-radius: 0; outline: none;">
+      </div>
+      <div id="sidebar-junctions-list" class="sidebar-junctions-list">
+        <div class="sidebar-loading">Loading...</div>
+      </div>
+    </aside>
+
+  </div> <!-- /room-page-layout -->
+
+  </section>
+  </main>
+
+  <!-- Fixed Floating Room Dock -->
+  <div class="room-controls-bar">
+    <div class="dock-emoji-row">
+      <button class="btn-emoji" data-emoji="❤️">❤️</button>
+      <button class="btn-emoji" data-emoji="👏">👏</button>
+      <button class="btn-emoji" data-emoji="😂">😂</button>
+      <button class="btn-emoji" data-emoji="👎">👎</button>
+      <button class="btn-emoji" data-emoji="💯">💯</button>
+    </div>
+    <div class="dock-divider"></div>
+    <div class="dock-controls-row">
+      <button id="btn-toggle-chat" class="mic-button ctrl-btn" aria-label="Chat" title="Chat" style="position: relative;">
+        <i class="bi bi-chat-left-dots-fill" aria-hidden="true"></i>
+        <span id="chat-unread-badge" style="display: none; position: absolute; top: -5px; right: -5px; background: var(--accent-coral); color: white; border-radius: 50%; font-size: 0.6rem; width: 18px; height: 18px; align-items: center; justify-content: center; font-weight: 900; border: 2px solid var(--bg-card);">!</span>
+      </button>
+      <button id="btn-raise-hand" class="mic-button ctrl-btn" aria-label="Raise Hand" title="Raise Hand">
+        <i class="bi bi-hand-index-thumb-fill" aria-hidden="true"></i>
+      </button>
+      <div class="mic-button-container">
+        <button id="mic-button" class="mic-button" aria-label="Toggle Mute/Unmute" title="Click to Mute/Unmute">
+          <span id="mic-icon-container">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+              <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path>
+              <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+          </span>
         </button>
-        <button id="btn-raise-hand" class="btn btn-secondary btn-pill"
-          style="padding: 0.55rem 1rem; font-size: 0.75rem; font-weight: 700;"> <i class="bi bi-hand-index-thumb-fill" aria-hidden="true"></i> Raise Hand
-        </button> <div class="mic-button-container"> <button id="mic-button" class="mic-button" aria-label="Toggle Mute/Unmute" title="Click to Mute/Unmute"> <span id="mic-icon-container"> <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round"> <line x1="1" y1="1" x2="23" y2="23"></line> <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path> <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path> <line x1="12" y1="19" x2="12" y2="23"></line> <line x1="8" y1="23" x2="16" y2="23"></line> </svg> </span> </button> </div> <button id="btn-record-stage" class="btn btn-secondary btn-pill" style="display: none; padding: 0.55rem 1rem; font-size: 0.75rem; font-weight: 700;">
-          <i class="bi bi-record-circle" aria-hidden="true"></i> Record
-        </button> <button id="btn-report-room" class="btn btn-secondary btn-pill"
-          style="padding: 0.55rem 1rem; font-size: 0.75rem; font-weight: 700;">
-        Exit Room
-        </button> </div> </section> </main> <div id="site-footer"></div>
-        
-<!-- Chat Sidebar UI -->
+      </div>
+      <div class="mic-button-container">
+        <button id="video-button" class="mic-button" aria-label="Toggle Camera" title="Click to Toggle Camera">
+          <span id="video-icon-container">
+            <i class="bi bi-camera-video-off" style="font-size: 1.2rem;"></i>
+          </span>
+        </button>
+      </div>
+      <button id="btn-record-stage" class="mic-button ctrl-btn" aria-label="Record" title="Record Stage" style="display: none;">
+        <i class="bi bi-record-circle" aria-hidden="true"></i>
+      </button>
+      <button id="btn-report-room" class="mic-button ctrl-btn ctrl-btn-exit" aria-label="Exit Room" title="Exit Room">
+        <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+
+<!-- Threaded Comments Sidebar UI -->
 <div id="chat-sidebar" class="chat-sidebar">
   <div class="chat-header">
-    <h3><i class="bi bi-chat-left-dots-fill"></i> Room Chat</h3>
-    <button id="btn-close-chat" class="btn-close-chat"><i class="bi bi-x-lg"></i></button>
+    <h3><i class="bi bi-chat-left-dots-fill"></i> Cockroach Talk</h3>
+    <div style="display:flex; gap: 0.5rem; align-items:center;">
+      <button id="btn-close-chat" class="btn-close-chat"><i class="bi bi-x-lg"></i></button>
+    </div>
   </div>
-  <div id="chat-messages" class="chat-messages">
-    <div class="chat-welcome">Welcome to the room chat! Messages are not saved.</div>
+  <div id="chat-messages" class="chat-messages threaded-comments-container">
+    <div class="chat-welcome">Welcome to the discussion! Keep it civil.</div>
+    <!-- Comments rendered dynamically here -->
   </div>
-  <form id="chat-form" class="chat-form">
-    <input type="text" id="chat-input" placeholder="Type a message..." maxlength="500" autocomplete="off" required>
-    <button type="submit" class="btn btn-gold btn-pill"><i class="bi bi-send-fill"></i></button>
+  <form id="chat-form" class="chat-form" data-parent-id="">
+    <div id="replying-to-banner" style="display:none; font-size: 0.7rem; color: var(--accent-coral); margin-bottom: 0.2rem;">
+      Replying to <span id="replying-to-name"></span>
+      <button type="button" id="cancel-reply-btn" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.7rem;">(cancel)</button>
+    </div>
+    <div class="comment-input-wrapper" style="display:flex; flex-direction:column; gap:0.6rem;">
+      <div class="emoji-picker-inline" style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+        <button type="button" class="btn-inline-emoji">😂</button>
+        <button type="button" class="btn-inline-emoji">👀</button>
+        <button type="button" class="btn-inline-emoji">💯</button>
+        <button type="button" class="btn-inline-emoji">👍</button>
+        <button type="button" class="btn-inline-emoji">👎</button>
+        <button type="button" class="btn-inline-emoji">✨</button>
+        <button type="button" class="btn-inline-emoji">🔥</button>
+      </div>
+      <div style="display:flex; gap:0.5rem; align-items:flex-start;">
+        <textarea id="chat-input" placeholder="What are your thoughts?" maxlength="1000" rows="1"
+style="resize:none; flex: 1; background:var(--bg-deep); color:white; border:2px solid var(--border-dark); border-radius:12px; padding:0.6rem; font-family:inherit; box-shadow: 3px 3px 0px var(--border-dark); transition: all 0.2s; outline: none;"></textarea>
+        <button type="submit" class="btn btn-primary" title="Post Comment" style="padding:0.6rem 0.8rem; border-radius:12px !important; display:flex; align-items:center; justify-content:center; align-self:stretch;">
+          <i class="bi bi-send-fill" style="font-size: 1.1rem;"></i>
+        </button>
+      </div>
+    </div>
   </form>
 </div>
 </body>

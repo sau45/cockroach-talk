@@ -849,6 +849,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Render Stage Grid (Active Debaters up to 8)
   function renderStageGrid(activeMembers, seniorModSocketId, selfMember) {
     if (!stageGrid) return;
+    
+    // Save existing video elements before clearing DOM to prevent black flashes
+    const existingVideos = {};
+    stageGrid.querySelectorAll('.avatar-video').forEach(vid => {
+      existingVideos[vid.id] = vid;
+    });
+
     stageGrid.innerHTML = '';
 
     if (!Array.isArray(activeMembers) || activeMembers.length === 0) {
@@ -882,8 +889,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const micStatusTitle = member.isSpeaking ? 'Speaking' : (member.isMuted ? 'Muted' : 'Microphone On');
 
       slot.innerHTML = `
-        <div class="avatar avatar-md ${genderClass} ${speakingClass}" title="${escapeHTML(member.name)}">
-          ${escapeHTML(initial)}
+        <div class="avatar avatar-xl ${genderClass} ${speakingClass}" title="${escapeHTML(member.name)}">
+          <div id="video-container-${member.socketId}" style="width:100%; height:100%; position:absolute; top:0; left:0; z-index:1;"></div>
+          ${member.isVideoEnabled 
+            ? '' 
+            : `<span class="initial">${escapeHTML(initial)}</span>`}
           
           ${member.isModerator ? `
             <div class="avatar-mod-badge" title="Stage Moderator (10+ min on stage, max 4)"> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 2v3M8 3.5l1.5 2.5M16 3.5l-1.5 2.5"/> <ellipse cx="12" cy="13" rx="4.5" ry="6.5" fill="rgba(255, 255, 255, 0.3)"/> <path d="M7.5 10H3M16.5 10H21M7 13.5H2.5M17 13.5H2.5M17 13.5H21.5M7.5 17L4.5 19.5M16.5 17l3 2.5"/> <line x1="12" y1="6.5" x2="12" y2="19.5"/> </svg> </div>
@@ -906,6 +916,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       stageGrid.appendChild(slot);
+      
+      if (member.isVideoEnabled) {
+        const container = document.getElementById(`video-container-${member.socketId}`);
+        const vidId = `video-stream-${member.socketId}`;
+        
+        if (container) {
+          if (existingVideos[vidId]) {
+            // Reuse existing playing video element seamlessly
+            container.appendChild(existingVideos[vidId]);
+          } else {
+            // Create brand new video element
+            const vidEl = document.createElement('video');
+            vidEl.className = 'avatar-video';
+            vidEl.autoplay = true;
+            vidEl.playsInline = true;
+            vidEl.muted = true;
+            vidEl.id = vidId;
+            container.appendChild(vidEl);
+            
+            setTimeout(() => {
+              const stream = WebRTCStub.getStreamFor(member.socketId);
+              if (stream) {
+                vidEl.srcObject = stream;
+              }
+            }, 50);
+          }
+        }
+      }
     });
   }
 
@@ -1267,6 +1305,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Video Button Toggle Camera Logic
+  const videoButton = document.getElementById('video-button');
+  const videoIconContainer = document.getElementById('video-icon-container');
+  let isVideoEnabled = false;
+  
+  if (videoButton) {
+    videoButton.addEventListener('click', async () => {
+      isVideoEnabled = !isVideoEnabled;
+      
+      try {
+          await WebRTCStub.setVideoState(isVideoEnabled);
+          if (isVideoEnabled) {
+              videoButton.classList.add('active-unmuted');
+              if (videoIconContainer) videoIconContainer.innerHTML = '<i class="bi bi-camera-video-fill" style="font-size: 1.2rem;"></i>';
+          } else {
+              videoButton.classList.remove('active-unmuted');
+              if (videoIconContainer) videoIconContainer.innerHTML = '<i class="bi bi-camera-video-off" style="font-size: 1.2rem;"></i>';
+          }
+          
+          // Re-render local stage to show our video immediately
+          if (currentRoomState && currentRoomState.activeMembers) {
+              const selfActiveMember = currentRoomState.activeMembers.find(m => m.socketId === currentSelfSocketId || String(m.tag) === String(userProfile?.tag));
+              if (selfActiveMember) {
+                  selfActiveMember.isVideoEnabled = isVideoEnabled;
+              }
+              renderStageGrid(currentRoomState.activeMembers, currentRoomState.seniorModSocketId, selfActiveMember);
+          }
+          
+      } catch (e) {
+          console.error('Failed to toggle camera', e);
+          isVideoEnabled = false;
+          showToast('Failed to access camera.');
+      }
+    });
+  }
+
   // Helper to spawn flying emoji visually
   function spawnEmoji(emoji) {
     const overlay = document.getElementById('emoji-overlay');
@@ -1378,14 +1452,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnRecordStage.addEventListener('click', () => {
       if (WebRTCStub.isRecording) {
         WebRTCStub.stopRecording();
-        btnRecordStage.innerHTML = '<i class="bi bi-record-circle" aria-hidden="true"></i> Record';
+        btnRecordStage.innerHTML = '<i class="bi bi-record-circle" aria-hidden="true"></i>';
         btnRecordStage.classList.remove('btn-recording');
         btnRecordStage.classList.add('btn-secondary');
         showToast('Recording stopped and saved to downloads.', 'info');
       } else {
         const started = WebRTCStub.startRecording();
         if (started) {
-          btnRecordStage.innerHTML = '<i class="bi bi-stop-circle-fill" aria-hidden="true"></i> Stop Rec';
+          btnRecordStage.innerHTML = '<i class="bi bi-stop-circle-fill" aria-hidden="true"></i>';
           btnRecordStage.classList.remove('btn-secondary');
           btnRecordStage.classList.add('btn-recording');
           showToast('Recording stage audio...', 'success');
@@ -1397,3 +1471,84 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
+// ============================================================
+// Junctions Sidebar - Desktop right sidebar with live room list
+// ============================================================
+(async function initJunctionsSidebar() {
+  const sidebarList = document.getElementById('sidebar-junctions-list');
+  if (!sidebarList) return;
+
+  const currentRoomId = new URLSearchParams(window.location.search).get('id');
+  const searchInput = document.getElementById('junction-search-input');
+
+  async function renderSidebarRooms() {
+    try {
+      const res = await fetch('/api/rooms');
+      let rooms = await res.json();
+      if (!rooms || !rooms.length) {
+        sidebarList.innerHTML = '<div class="sidebar-loading">No junctions available</div>';
+        return;
+      }
+      
+      // Calculate totalUsers for sorting
+      rooms.forEach(room => {
+        room.totalUsers = (room.activeMembersCount || room.activeCount || 0) + (room.waitingQueueCount || room.queueCount || 0);
+      });
+      
+      // Sort logic: 
+      // 1. Active junctions (users > 0) come before empty ones.
+      // 2. Active junctions are sorted in INCREASING order (1, 2, 3...).
+      // 3. Empty junctions are sorted alphabetically.
+      rooms.sort((a, b) => {
+        if (a.totalUsers > 0 && b.totalUsers > 0) {
+          return a.totalUsers - b.totalUsers; // Ascending
+        }
+        if (a.totalUsers > 0) return -1;
+        if (b.totalUsers > 0) return 1;
+        return (a.topic || a.name || '').localeCompare(b.topic || b.name || '');
+      });
+      
+      // Search filter
+      if (searchInput && searchInput.value.trim() !== '') {
+        const query = searchInput.value.trim().toLowerCase();
+        rooms = rooms.filter(room => (room.topic || room.name || '').toLowerCase().includes(query));
+      }
+      
+      if (rooms.length === 0) {
+        sidebarList.innerHTML = '<div class="sidebar-loading">No matching junctions</div>';
+        return;
+      }
+
+      sidebarList.innerHTML = rooms.map(room => {
+        const isActive = room.id === currentRoomId || room.roomId === currentRoomId;
+        const totalUsers = room.totalUsers;
+        const hasUsers = totalUsers > 0;
+        const lock = room.hasPassword ? '<i class="bi bi-lock-fill" style="font-size:0.65rem;opacity:0.6;margin-right:2px;"></i>' : '';
+        const encodedId = encodeURIComponent(room.id || room.roomId || '');
+        const users = room.allUsers || [];
+        const userTags = users.slice(0, 3).map(u => {
+          const tag = u.tag ? `Co..#${u.tag}` : (u.name || '?');
+          return `<span class="sidebar-user-tag">👤 ${escapeHTML(tag)}</span>`;
+        }).join('');
+        const moreCount = totalUsers > 3 ? `<span class="sidebar-user-tag sidebar-user-more">+${totalUsers - 3}</span>` : '';
+        return `
+          <a href="room.html?id=${encodedId}" class="sidebar-junction-item${isActive ? ' active-room' : ''}">
+            <div class="sidebar-junction-info">
+              <div class="sidebar-junction-name">${lock}${escapeHTML(room.topic || room.name || 'Junction')}</div>
+              <div class="sidebar-junction-users">${hasUsers ? (userTags + moreCount) : '<span style="color:var(--text-secondary);font-size:0.65rem;">Empty</span>'}</div>
+            </div>
+            <span class="sidebar-junction-count${hasUsers ? ' has-users' : ''}">${totalUsers}</span>
+          </a>`;
+      }).join('');
+    } catch (e) {
+      sidebarList.innerHTML = '<div class="sidebar-loading">Failed to load</div>';
+    }
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', renderSidebarRooms);
+  }
+
+  await renderSidebarRooms();
+  setInterval(renderSidebarRooms, 5000);
+}());

@@ -52,12 +52,12 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  min-height: 260px;
+  min-height: 320px;
 }
 
 .spaces-stage-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
   gap: 1.25rem 0.85rem;
   align-items: flex-start;
   justify-items: center;
@@ -471,12 +471,36 @@
   transition: var(--transition-bounce);
   box-shadow: var(--shadow-md) !important;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.avatar video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+.avatar span.initial {
+  position: relative;
 }
 
 .avatar-md {
   width: 48px;
   height: 48px;
   font-size: 0.95rem;
+}
+
+.avatar-xl {
+  width: 100%;
+  height: auto !important;
+  aspect-ratio: 1 / 1;
+  font-size: 3rem;
+  max-width: 100%;
+  align-self: stretch;
 }
 
 .avatar-sm {
@@ -603,23 +627,23 @@
 
 /* Center Microphone Floating Dock Button */
 .mic-button {
-  width: 52px;
-  height: 52px;
+  width: 38px;
+  height: 38px;
   border-radius: 0px !important;
   background: var(--bg-main);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 3px solid var(--border-main) !important;
+  border: 2px solid var(--border-main) !important;
   box-shadow: var(--shadow-md) !important;
   transition: all var(--transition-bounce);
 }
 
 @media (min-width: 640px) {
   .mic-button {
-    width: 58px;
-    height: 58px;
+    width: 44px;
+    height: 44px;
   }
 }
 
@@ -631,6 +655,65 @@
   background: var(--bg-main);
   border-color: var(--text-main);
   box-shadow: var(--shadow-md) !important;
+}
+
+/* Control bar icon buttons (chat, raise hand, record, exit) - same square style as mic */
+.ctrl-btn {
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+/* Exit button - red accent */
+.ctrl-btn-exit {
+  border-color: #e74c3c !important;
+  color: #e74c3c !important;
+}
+
+.ctrl-btn-exit:hover {
+  background: #e74c3c !important;
+  color: #fff !important;
+}
+
+/* Dock internal layout */
+.room-controls-bar {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dock-emoji-row {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.dock-emoji-row .btn-emoji {
+  background: none;
+  border: none;
+  font-size: 1.15rem;
+  cursor: pointer;
+  padding: 0.15rem 0.25rem;
+  transition: transform 0.15s ease;
+  line-height: 1;
+}
+
+.dock-emoji-row .btn-emoji:hover {
+  transform: scale(1.3);
+}
+
+.dock-divider {
+  width: 80%;
+  height: 1px;
+  background: var(--border-main);
+  margin: 0.1rem 0;
+  flex-shrink: 0;
+}
+
+.dock-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 /* Modals */
@@ -1307,25 +1390,25 @@
 
 /* Waiting Queue Container & Grid */
 .waiting-queue-container {
-  background: var(--bg-glass-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 0px !important;
-  padding: 1.25rem;
-  margin-top: 1rem;
-  margin-bottom: 1rem;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .queue-header {
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  margin-bottom: 1rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .queue-section-title {
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -1915,10 +1998,17 @@
     background: transparent;
   }
   
-  /* Force 3 users per row on mobile for better UI */
+  /* Force 2 users per row on mobile for better UI */
   .spaces-stage-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 0.85rem 0.4rem;
+  }
+
+  /* Ensure video avatars are perfectly square on mobile */
+  .avatar-xl {
+    max-width: 100%;
+    aspect-ratio: 1 / 1;
+    align-self: stretch;
   }
   
   /* Make waiting queue fit better on mobile */

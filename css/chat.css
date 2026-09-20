@@ -111,6 +111,7 @@
   border-top: 2px solid var(--border-dark);
   background: var(--bg-card);
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
 }
 
@@ -133,4 +134,64 @@
 
 .chat-form button {
   padding: 0.5rem 0.85rem;
+}
+
+/* Threaded Comments Styling */
+.threaded-comments-container {
+  padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.threaded-comment {
+  margin-bottom: 0.5rem;
+  position: relative;
+  background: var(--bg-card);
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-dark);
+}
+
+.threaded-comment .comment-header {
+  margin-bottom: 0.2rem;
+}
+
+.threaded-comment .comment-actions button {
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+.threaded-comment .comment-actions button:hover {
+  background: var(--bg-page);
+}
+
+.comment-children {
+  position: relative;
+}
+
+.comment-input-wrapper textarea {
+  outline: none;
+  border-color: var(--border-dark);
+}
+.comment-input-wrapper textarea:focus {
+  border-color: var(--accent-gold);
+}
+
+.btn-inline-emoji {
+  background: var(--bg-card);
+  border: 2px solid var(--border-dark);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  font-size: 1.1rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 2px 2px 0px var(--border-dark);
+}
+.btn-inline-emoji:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px var(--border-dark);
+}
+.btn-inline-emoji:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px var(--border-dark);
 }

@@ -12,6 +12,10 @@ import path from 'path';
 import dns from 'dns';
 import { fileURLToPath } from 'url';
 import { MongoClient } from 'mongodb';
+import mongoose from 'mongoose';
+import helmet from 'helmet';
+import mongoSanitize from 'express-mongo-sanitize';
+import commentsRoute from './routes/comments.js';
 import { SPECIES_LIST } from './js/config.js';
 
 // Force Google Public DNS for SRV record resolution on Windows
@@ -39,6 +43,15 @@ const PORT = process.env.PORT || 8000;
 
 app.use(cors());
 app.use(express.json());
+app.use(helmet({ contentSecurityPolicy: false })); // disable CSP to not break inline scripts
+app.use(mongoSanitize());
+
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
+app.use('/api/comments', commentsRoute(io));
 
 // Serve TURN credentials securely from environment variables
 app.get('/api/turn-credentials', (req, res) => {
@@ -91,6 +104,10 @@ if (process.env.MONGODB_URI) {
   }).catch((err) => {
     console.error('❌ MONGODB CONNECTION FAILED! Check your IP Whitelist in MongoDB Atlas or ensure the cluster is active. Error:', err.message);
   });
+
+  mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log('✅ Mongoose connected for Threaded Comments.'))
+    .catch(e => console.error('❌ Mongoose connection failed:', e));
 }
 
 // Track Junction Debate rooms (roomId -> { activeMembers: [], waitingQueue: [] })
@@ -151,17 +168,18 @@ function buildRoomStatePayload(roomId, now = Date.now()) {
 
   const activeMembers = room.activeMembers.map(m => {
     const isMod = (m.socketId && modSockets.has(m.socketId)) || (m.tag && modTags.has(String(m.tag)));
-    return {
-      socketId: m.socketId,
-      tag: m.tag,
-      name: m.displayName,
-      gender: m.gender,
-      joinedActiveAt: m.joinedActiveAt,
-      activeTimeMs: now - m.joinedActiveAt,
-      isModerator: !!isMod,
-      isMuted: m.isMuted,
-      isSpeaking: m.isSpeaking
-    };
+      return {
+        socketId: m.socketId,
+        tag: m.tag,
+        name: m.displayName,
+        gender: m.gender,
+        joinedActiveAt: m.joinedActiveAt,
+        activeTimeMs: now - m.joinedActiveAt,
+        isModerator: !!isMod,
+        isMuted: m.isMuted,
+        isSpeaking: m.isSpeaking,
+        isVideoEnabled: m.isVideoEnabled
+      };
   });
 
   const waitingQueue = room.waitingQueue.map(q => {
@@ -754,6 +772,18 @@ io.on('connection', (socket) => {
           isMuted,
           isSpeaking: member.isSpeaking
         });
+      }
+    }
+  });
+
+  // Video Toggle
+  socket.on('video-toggle', ({ isVideoEnabled }) => {
+    if (currentUserProfile && currentRoomId) {
+      const room = getJunctionRoom(currentRoomId);
+      const member = findBySocket(room.activeMembers, currentUserProfile.tag);
+      if (member) {
+        member.isVideoEnabled = isVideoEnabled;
+        broadcastRoomState(currentRoomId, room);
       }
     }
   });

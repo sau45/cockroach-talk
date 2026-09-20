@@ -20,7 +20,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding-bottom: 2rem;
+  padding-bottom: 130px; /* Space for fixed controls bar */
 }
 
 /* Header Partial Layout & Responsive Mobile Menu */
@@ -466,30 +466,186 @@
   }
 }
 
-/* In-Page Room Controls Bar */
-.room-controls-bar {
-  position: relative;
-  width: 100%;
-  max-width: 680px;
-  margin: 1.5rem auto 0;
-  padding: 0.5rem 0.75rem;
+/* Room page two-column layout: Stage + Sidebar side-by-side */
+.room-page-layout {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-top: 0.75rem;
+}
+
+.room-main-col {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Junctions Sidebar - desktop only */
+.junctions-sidebar {
+  display: none;
+  width: 240px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 200px);
+  overflow: hidden;
+  background: var(--bg-glass-card);
+  border: 2px solid var(--border-main);
+  box-shadow: 4px 4px 0px var(--border-main);
+}
+
+@media (min-width: 1024px) {
+  .junctions-sidebar {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.junctions-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-gold);
+  border-bottom: 2px solid var(--border-main);
+  background: var(--bg-main);
+}
+
+.sidebar-junctions-list {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex: 1;
+  height: calc(100% - 85px);
+}
+
+.sidebar-junctions-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-junctions-list::-webkit-scrollbar-track {
+  background: var(--bg-main);
+  border-left: 2px solid var(--border-main);
+}
+
+.sidebar-junctions-list::-webkit-scrollbar-thumb {
+  background: var(--accent-purple);
+  border-left: 2px solid var(--border-main);
+}
+
+.sidebar-loading {
+  padding: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.sidebar-junction-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.15s ease;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+.sidebar-junction-item:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.sidebar-junction-item.active-room {
+  background: rgba(138, 43, 226, 0.12);
+  border-left: 3px solid var(--accent-purple);
+}
+
+.sidebar-junction-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-junction-count {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.1rem 0.4rem;
+  background: var(--bg-main);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.sidebar-junction-count.has-users {
+  border-color: var(--accent-purple);
+  color: var(--accent-purple);
+}
+
+/* Junction info: name + user tags stacked */
+.sidebar-junction-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.sidebar-junction-users {
   display: flex;
   flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.sidebar-user-tag {
+  font-size: 0.62rem;
+  color: var(--text-secondary);
+  background: var(--bg-main);
+  border: 1px solid var(--border-subtle);
+  padding: 0.05rem 0.3rem;
+  white-space: nowrap;
+}
+
+.sidebar-user-more {
+  color: var(--accent-purple);
+  border-color: var(--accent-purple);
+}
+
+/* In-Page Room Controls Bar - Fixed Floating Dock */
+.room-controls-bar {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9990;
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  background: transparent;
-  border: none;
+  gap: 0.65rem;
+  padding: 0.6rem 1rem;
+  background: rgba(10, 10, 15, 0.85);
+  border: 2px solid var(--border-main);
   border-radius: 0px !important;
-  box-shadow: var(--shadow-md) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  box-shadow: 6px 6px 0px var(--border-main), var(--shadow-md) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  /* Safe area for notched phones */
+  padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
 }
 
 @media (min-width: 640px) {
   .room-controls-bar {
-    margin: 2rem auto 0;
-    padding: 0.75rem 0;
+    gap: 0.85rem;
+    padding: 0.75rem 1.5rem;
+    bottom: 1.75rem;
   }
 }
 
