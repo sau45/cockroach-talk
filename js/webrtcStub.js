@@ -451,12 +451,22 @@ class WebRTCManager {
       this.localStream.getTracks().forEach(track => {
         if (track.kind === 'audio') {
             track.enabled = !this.isMuted;
-        } else if (track.kind === 'video') {
+            pc.addTrack(track, this.localStream);
+            trackAdded = true;
+        } else if (track.kind === 'video' && !this.isScreenSharing) {
             track.enabled = this.isVideoEnabled;
+            pc.addTrack(track, this.localStream);
+            trackAdded = true;
         }
-        pc.addTrack(track, this.localStream);
-        trackAdded = true;
       });
+    }
+
+    if (this.isScreenSharing && this.screenStream) {
+      const screenTrack = this.screenStream.getVideoTracks()[0];
+      if (screenTrack) {
+        pc.addTrack(screenTrack, this.screenStream);
+        trackAdded = true;
+      }
     }
 
     // Explicitly add audio transceiver for sendrecv ONLY if no track was added
@@ -491,17 +501,34 @@ class WebRTCManager {
     // Handle Remote Track (Remote Audio/Video Stream)
     pc.ontrack = (event) => {
       console.log('[WebRTC] Received remote track from socket:', targetSocketId, event.track.kind);
-      let remoteStream;
-      if (event.streams && event.streams.length > 0) {
-        remoteStream = event.streams[0];
-      } else {
-        const existingEl = this.audioElements.get(targetSocketId);
-        remoteStream = (existingEl && existingEl.srcObject) ? existingEl.srcObject : new MediaStream();
-        if (!remoteStream.getTracks().includes(event.track)) {
-          remoteStream.addTrack(event.track);
-        }
+      
+      if (!this.remoteStreams) this.remoteStreams = new Map();
+      let remoteStream = this.remoteStreams.get(targetSocketId);
+      if (!remoteStream) {
+        remoteStream = new MediaStream();
+        this.remoteStreams.set(targetSocketId, remoteStream);
       }
-      this.attachRemoteAudio(targetSocketId, remoteStream);
+      
+      if (!remoteStream.getTracks().includes(event.track)) {
+        remoteStream.addTrack(event.track);
+      }
+
+      event.track.addEventListener('ended', () => {
+        if (remoteStream.getTracks().includes(event.track)) {
+          remoteStream.removeTrack(event.track);
+        }
+        if (this.callbacks.onRemoteStreamUpdate) {
+          this.callbacks.onRemoteStreamUpdate({ socketId: targetSocketId, stream: remoteStream });
+        }
+      });
+
+      if (event.track.kind === 'audio') {
+        this.attachRemoteAudio(targetSocketId, remoteStream);
+      }
+      
+      if (this.callbacks.onRemoteStreamUpdate) {
+        this.callbacks.onRemoteStreamUpdate({ socketId: targetSocketId, stream: remoteStream, track: event.track });
+      }
     };
 
     // If initiator, create and send WebRTC offer
@@ -646,6 +673,52 @@ class WebRTCManager {
     return shouldEnable;
   }
 
+  // Synchronize camera or screen video track to all active peer connections
+  async syncVideoTracksToAllPeers(videoTrack = null) {
+    const streamToAttach = this.isScreenSharing ? this.screenStream : this.localStream;
+    for (const [socketId, pc] of this.peerConnections.entries()) {
+      try {
+        let videoSender = null;
+        if (pc.getTransceivers) {
+          const transceivers = pc.getTransceivers();
+          const vTransceiver = transceivers.find(t => 
+            (t.sender && t.sender.track && t.sender.track.kind === 'video') ||
+            (t.receiver && t.receiver.track && t.receiver.track.kind === 'video') ||
+            (t.sender && t.sender.track === null && !t.receiver?.track?.kind?.includes('audio'))
+          );
+          if (vTransceiver && vTransceiver.sender) {
+            videoSender = vTransceiver.sender;
+          }
+        }
+        if (!videoSender) {
+          const senders = pc.getSenders();
+          videoSender = senders.find(s => s.track && s.track.kind === 'video');
+        }
+
+        if (videoTrack) {
+          if (videoSender) {
+            await videoSender.replaceTrack(videoTrack);
+          } else {
+            pc.addTrack(videoTrack, streamToAttach || new MediaStream([videoTrack]));
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            this.socket.emit('signal-offer', {
+              targetSocketId: socketId,
+              offer: pc.localDescription,
+              senderProfile: this.userProfile
+            });
+          }
+        } else {
+          if (videoSender) {
+            await videoSender.replaceTrack(null);
+          }
+        }
+      } catch (e) {
+        console.warn('[WebRTC] syncVideoTracksToAllPeers error for socket:', socketId, e);
+      }
+    }
+  }
+
   async toggleScreenShare() {
     if (this.isScreenSharing) {
       // Stop screenshare
@@ -654,7 +727,9 @@ class WebRTCManager {
         this.screenStream = null;
       }
       this.isScreenSharing = false;
-      this.socket.emit('screen-share-toggle', { isScreenSharing: false });
+      if (this.socket) {
+        this.socket.emit('screen-share-toggle', { isScreenSharing: false });
+      }
       
       // Revert to camera if it was enabled
       if (this.isVideoEnabled) {
@@ -666,33 +741,62 @@ class WebRTCManager {
       } else {
         await this.syncVideoTracksToAllPeers(null);
       }
+
+      if (this.callbacks.onScreenShareEnded) {
+        this.callbacks.onScreenShareEnded();
+      }
       return false;
     } else {
       // Start screenshare
       try {
-        this.screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        this.screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            cursor: 'always'
+          },
+          audio: false
+        });
         
-        // Handle user clicking "Stop sharing" on the browser native bar
-        this.screenStream.getVideoTracks()[0].addEventListener('ended', () => {
-          this.toggleScreenShare(); // Toggle back off
+        const videoTrack = this.screenStream.getVideoTracks()[0];
+        if (!videoTrack) {
+          throw new Error('No video track returned by screen capture');
+        }
+
+        // Handle user clicking "Stop sharing" on the browser native floating bar
+        videoTrack.addEventListener('ended', () => {
+          if (this.isScreenSharing) {
+            this.toggleScreenShare();
+          }
         });
         
         this.isScreenSharing = true;
-        this.socket.emit('screen-share-toggle', { isScreenSharing: true });
+        if (this.socket) {
+          this.socket.emit('screen-share-toggle', { isScreenSharing: true });
+        }
         
-        const videoTrack = this.screenStream.getVideoTracks()[0];
         await this.syncVideoTracksToAllPeers(videoTrack);
+
+        if (this.callbacks.onScreenShareStarted) {
+          this.callbacks.onScreenShareStarted(this.screenStream);
+        }
         return true;
       } catch (err) {
         console.error('[WebRTC] Error starting screen share:', err);
+        if (this.screenStream) {
+          this.screenStream.getTracks().forEach(t => t.stop());
+          this.screenStream = null;
+        }
+        this.isScreenSharing = false;
+        if (this.callbacks.onScreenShareEnded) {
+          this.callbacks.onScreenShareEnded();
+        }
         return false;
       }
     }
   }
 
   // Get the combined stream for the UI (Video & Audio visualizer)
-  getStreamFor(socketId) {
-    if (!socketId || socketId === this.socket?.id) {
+  getStreamFor(socketId, isSelf = false) {
+    if (!socketId || socketId === this.socket?.id || isSelf) {
         if (this.isScreenSharing && this.screenStream) {
             return this.screenStream;
         }

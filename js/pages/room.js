@@ -3,7 +3,7 @@
  * File Responsibility: Junction Debate Waiting Queue & Room Entry System (State updates, Moderator powers, Seniority removal authority, Quick Comment, Toasts).
  */
 
-import { WebRTCStub } from '../webrtcStub.js';
+import { WebRTCStub } from '../webrtcStub.js?v=20260921_screen3';
 import { storage } from '../utils/storage.js';
 import { ICONS } from '../utils/icons.js';
 import { escapeHTML } from '../utils/dom.js';
@@ -857,6 +857,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     stageGrid.innerHTML = '';
+    
+    const stageContainer = document.getElementById('stage-container');
+    const presentationArea = document.getElementById('presentation-area');
+    const presVid = document.getElementById('presentation-video');
+    const presTitle = document.getElementById('presentation-presenter-name');
+    const btnStopPres = document.getElementById('btn-stop-presenting');
+    
+    const sharingMember = activeMembers.find(m => m.isScreenSharing);
+    if (sharingMember && stageContainer && presentationArea && presVid) {
+      stageContainer.classList.add('layout-presenting');
+      
+      const isSelf = (sharingMember.socketId === currentSelfSocketId || String(sharingMember.tag) === String(userProfile?.tag));
+      if (isSelf) {
+        if (presTitle) presTitle.innerHTML = '<i class="bi bi-display"></i> You are presenting';
+        if (btnStopPres) btnStopPres.style.display = 'inline-flex';
+        presVid.muted = true; // Host screen audio muted locally to prevent echo feedback loop
+      } else {
+        const presenterName = formatCompactHandle(sharingMember.name, sharingMember.tag);
+        if (presTitle) presTitle.innerHTML = `<i class="bi bi-display"></i> ${escapeHTML(presenterName)} is presenting`;
+        if (btnStopPres) btnStopPres.style.display = 'none';
+        presVid.muted = true; // Screen audio plays through WebRTC audio track to prevent duplicate audio
+      }
+
+      const stream = WebRTCStub.getStreamFor(sharingMember.socketId, isSelf);
+      if (stream) {
+        if (presVid.srcObject !== stream) {
+          presVid.srcObject = stream;
+        }
+        presVid.play().catch(e => console.warn('Presentation video play err:', e));
+      }
+    } else if (stageContainer && presentationArea && presVid) {
+      stageContainer.classList.remove('layout-presenting');
+      if (presVid.srcObject) presVid.srcObject = null;
+      if (btnStopPres) btnStopPres.style.display = 'none';
+    }
 
     if (!Array.isArray(activeMembers) || activeMembers.length === 0) {
       stageGrid.innerHTML = `
@@ -919,7 +954,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       stageGrid.appendChild(slot);
       
-      if (member.isVideoEnabled) {
+      if (member.isVideoEnabled && !member.isScreenSharing) {
         const container = document.getElementById(`video-container-${member.socketId}`);
         const vidId = `video-stream-${member.socketId}`;
         
@@ -949,6 +984,13 @@ document.addEventListener('DOMContentLoaded', async () => {
               }
             }, 50);
           }
+        }
+      } else {
+        // If sharing screen or video disabled, ensure video is removed from avatar box
+        const vidId = `video-stream-${member.socketId}`;
+        if (existingVideos[vidId]) {
+          existingVideos[vidId].remove();
+          delete existingVideos[vidId];
         }
       }
     });
@@ -1265,6 +1307,38 @@ document.addEventListener('DOMContentLoaded', async () => {
             selfActiveMember.isSpeaking = isSpeaking;
             renderStageGrid(currentRoomState.activeMembers, currentRoomState.seniorModSocketId, selfActiveMember);
           }
+        }
+      },
+      onScreenShareStarted: () => {
+        const screenshareBtn = document.getElementById('screenshare-button');
+        if (screenshareBtn) {
+          screenshareBtn.classList.add('active');
+          screenshareBtn.style.color = 'var(--accent-gold)';
+          screenshareBtn.style.borderColor = 'var(--accent-gold)';
+        }
+        if (currentRoomState && Array.isArray(currentRoomState.activeMembers)) {
+          const selfMem = currentRoomState.activeMembers.find(m => m.socketId === currentSelfSocketId || String(m.tag) === String(userProfile?.tag));
+          if (selfMem) selfMem.isScreenSharing = true;
+          renderStageGrid(currentRoomState.activeMembers, currentRoomState.seniorModSocketId, selfMem);
+        }
+      },
+      onScreenShareEnded: () => {
+        const screenshareBtn = document.getElementById('screenshare-button');
+        if (screenshareBtn) {
+          screenshareBtn.classList.remove('active');
+          screenshareBtn.style.color = '';
+          screenshareBtn.style.borderColor = '';
+        }
+        if (currentRoomState && Array.isArray(currentRoomState.activeMembers)) {
+          const selfMem = currentRoomState.activeMembers.find(m => m.socketId === currentSelfSocketId || String(m.tag) === String(userProfile?.tag));
+          if (selfMem) selfMem.isScreenSharing = false;
+          renderStageGrid(currentRoomState.activeMembers, currentRoomState.seniorModSocketId, selfMem);
+        }
+      },
+      onRemoteStreamUpdate: () => {
+        if (currentRoomState && currentRoomState.activeMembers) {
+          const selfActiveMember = currentRoomState.activeMembers.find(m => m.socketId === currentSelfSocketId || (m.tag && String(m.tag) === String(userProfile?.tag)));
+          renderStageGrid(currentRoomState.activeMembers, currentRoomState.seniorModSocketId, selfActiveMember);
         }
       }
     });
@@ -1626,12 +1700,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const screenshareBtn = document.getElementById('screenshare-button');
   if (screenshareBtn) {
     screenshareBtn.addEventListener('click', async () => {
-      // If we are currently sharing, just turn it off without confirmation
+      // If we are currently sharing, turn it off without modal
       if (WebRTCStub.isScreenSharing) {
         await WebRTCStub.toggleScreenShare();
-        screenshareBtn.classList.remove('active');
-        screenshareBtn.style.color = '';
-        screenshareBtn.style.borderColor = '';
         return;
       }
       
@@ -1639,15 +1710,33 @@ document.addEventListener('DOMContentLoaded', async () => {
       const confirmed = await showConfirmModal('Share Screen', 'Are you sure you want to share your screen with the room?');
       if (!confirmed) return;
 
-      const isSharing = await WebRTCStub.toggleScreenShare();
-      if (isSharing) {
-        screenshareBtn.classList.add('active');
-        screenshareBtn.style.color = 'var(--accent-gold)';
-        screenshareBtn.style.borderColor = 'var(--accent-gold)';
+      await WebRTCStub.toggleScreenShare();
+    });
+  }
+
+  // Presentation Stop Presenting Button
+  const btnStopPres = document.getElementById('btn-stop-presenting');
+  if (btnStopPres) {
+    btnStopPres.addEventListener('click', async () => {
+      if (WebRTCStub.isScreenSharing) {
+        await WebRTCStub.toggleScreenShare();
+      }
+    });
+  }
+
+  // Presentation Fullscreen Button
+  const btnFsPres = document.getElementById('btn-fullscreen-presentation');
+  if (btnFsPres) {
+    btnFsPres.addEventListener('click', () => {
+      const presArea = document.getElementById('presentation-area');
+      if (!document.fullscreenElement) {
+        if (presArea && presArea.requestFullscreen) {
+          presArea.requestFullscreen().catch(e => console.warn('Fullscreen err:', e));
+        }
       } else {
-        screenshareBtn.classList.remove('active');
-        screenshareBtn.style.color = '';
-        screenshareBtn.style.borderColor = '';
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(e => console.warn('Exit fullscreen err:', e));
+        }
       }
     });
   }

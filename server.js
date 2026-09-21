@@ -178,7 +178,8 @@ function buildRoomStatePayload(roomId, now = Date.now()) {
         isModerator: !!isMod,
         isMuted: m.isMuted,
         isSpeaking: m.isSpeaking,
-        isVideoEnabled: m.isVideoEnabled
+        isVideoEnabled: m.isVideoEnabled,
+        isScreenSharing: !!m.isScreenSharing
       };
   });
 
