@@ -10,6 +10,9 @@
       <h1 id="room-title" class="room-heading-title">State Cockroach</h1>
     </div>
     <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <button id="mobile-junctions-btn" class="mobile-junctions-btn" aria-label="Open Junctions">
+        <i class="bi bi-grid-3x3-gap-fill"></i>
+      </button>
       <div class="badge-capacity" id="stage-capacity-badge"><i class="bi bi-mic-fill" aria-hidden="true"></i> Stage: 0/8</div>
     </div>
   </div>
@@ -50,7 +53,10 @@
     <aside class="junctions-sidebar" id="junctions-sidebar">
       <div class="junctions-sidebar-header">
         <i class="bi bi-grid-3x3-gap-fill"></i>
-        <span>All Junctions</span>
+        <span style="flex: 1;">All Junctions</span>
+        <button id="mobile-sidebar-close" class="mobile-sidebar-close" aria-label="Close">
+          <i class="bi bi-x-lg"></i>
+        </button>
       </div>
       <div class="junctions-search-box" style="padding: 0.5rem; border-bottom: 2px solid var(--border-main); flex-shrink: 0;">
         <input type="text" id="junction-search-input" placeholder="Search junctions..." style="width: 100%; padding: 0.4rem 0.6rem; background: var(--bg-main); border: 2px solid var(--border-subtle); color: var(--text-main); font-size: 0.85rem; border-radius: 0; outline: none;">

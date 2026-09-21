@@ -1481,6 +1481,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ============================================================
 (async function initJunctionsSidebar() {
   const sidebarList = document.getElementById('sidebar-junctions-list');
+  const sidebar = document.getElementById('junctions-sidebar');
   if (!sidebarList) return;
 
   const currentRoomId = new URLSearchParams(window.location.search).get('id');
@@ -1552,6 +1553,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (searchInput) {
     searchInput.addEventListener('input', renderSidebarRooms);
+  }
+
+  // Mobile sidebar toggle logic
+  const mobileJunctionsBtn = document.getElementById('mobile-junctions-btn');
+  const mobileSidebarClose = document.getElementById('mobile-sidebar-close');
+  if (mobileJunctionsBtn && sidebar) {
+    mobileJunctionsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sidebar.classList.toggle('show-mobile-sidebar');
+    });
+
+    if (mobileSidebarClose) {
+      mobileSidebarClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sidebar.classList.remove('show-mobile-sidebar');
+      });
+    }
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+      if (sidebar.classList.contains('show-mobile-sidebar')) {
+        if (!sidebar.contains(e.target) && !mobileJunctionsBtn.contains(e.target)) {
+          sidebar.classList.remove('show-mobile-sidebar');
+        }
+      }
+    });
   }
 
   await renderSidebarRooms();
