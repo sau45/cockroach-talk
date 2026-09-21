@@ -481,6 +481,10 @@ class WebRTCManager {
         pc.restartIce();
       }
     };
+    
+    pc.onconnectionstatechange = () => {
+      console.log(`[WebRTC] Peer Connection State (${targetSocketId}):`, pc.connectionState);
+    };
 
     // Handle Remote Track (Remote Audio/Video Stream)
     pc.ontrack = (event) => {
