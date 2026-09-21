@@ -924,7 +924,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (container) {
           if (existingVideos[vidId]) {
             // Reuse existing playing video element seamlessly
-            container.appendChild(existingVideos[vidId]);
+            const vidEl = existingVideos[vidId];
+            container.appendChild(vidEl);
+            setTimeout(() => {
+              const stream = WebRTCStub.getStreamFor(member.socketId);
+              if (stream) vidEl.srcObject = stream;
+            }, 50);
           } else {
             // Create brand new video element
             const vidEl = document.createElement('video');

@@ -513,6 +513,12 @@ class WebRTCManager {
 
   // Attach Remote Audio Stream to HTML5 Audio Element for seamless background playback
   attachRemoteAudio(socketId, stream) {
+    // BUGFIX: Create an audio-only stream for the hidden <audio> element.
+    // If you assign a stream with a video track to an <audio> tag, Chrome sometimes
+    // disables video frame decoding for that stream, resulting in a black screen in <video> tags.
+    const audioTracks = stream.getAudioTracks();
+    const audioOnlyStream = new MediaStream(audioTracks);
+    
     let audioEl = this.audioElements.get(socketId);
     let shouldInitPlay = false;
     
@@ -528,8 +534,19 @@ class WebRTCManager {
       shouldInitPlay = true;
     }
     
-    if (audioEl.srcObject !== stream) {
-      audioEl.srcObject = stream;
+    // Only update if tracks changed to prevent popping
+    const currentSrc = audioEl.srcObject;
+    let tracksChanged = true;
+    if (currentSrc) {
+        const currentTracks = currentSrc.getAudioTracks();
+        if (currentTracks.length === audioTracks.length && 
+            currentTracks.every((t, i) => t === audioTracks[i])) {
+            tracksChanged = false;
+        }
+    }
+    
+    if (tracksChanged) {
+      audioEl.srcObject = audioOnlyStream;
       shouldInitPlay = true;
     }
     
@@ -611,12 +628,17 @@ class WebRTCManager {
     return shouldEnable;
   }
 
+  // Get the combined stream for the UI (Video & Audio visualizer)
   getStreamFor(socketId) {
     if (!socketId || socketId === this.socket?.id) {
         return this.localStream;
     }
-    const audioEl = this.audioElements.get(socketId);
-    return audioEl ? audioEl.srcObject : null;
+    const pc = this.peerConnections.get(socketId);
+    if (!pc) return null;
+    
+    // Create a fresh stream from all current receivers
+    const tracks = pc.getReceivers().map(r => r.track).filter(Boolean);
+    return new MediaStream(tracks);
   }
 
   // Publish Microphone (Unmute)

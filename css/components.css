@@ -991,6 +991,17 @@
   transition: all 0.2s ease;
 }
 
+.avatar-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: inherit;
+  z-index: 1;
+}
+
 .btn-remove-mini:hover {
   background: var(--bg-main);
   transform: scale(1.05);
