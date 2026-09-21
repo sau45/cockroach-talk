@@ -633,12 +633,32 @@ class WebRTCManager {
     if (!socketId || socketId === this.socket?.id) {
         return this.localStream;
     }
-    const pc = this.peerConnections.get(socketId);
-    if (!pc) return null;
     
-    // Create a fresh stream from all current receivers
-    const tracks = pc.getReceivers().map(r => r.track).filter(Boolean);
-    return new MediaStream(tracks);
+    // Maintain a stable MediaStream reference per socket to prevent UI flashing
+    if (!this.remoteStreams) this.remoteStreams = new Map();
+    let stream = this.remoteStreams.get(socketId);
+    if (!stream) {
+        stream = new MediaStream();
+        this.remoteStreams.set(socketId, stream);
+    }
+    
+    // Sync all currently active tracks from the connection into the stable stream
+    const pc = this.peerConnections.get(socketId);
+    if (pc) {
+        const activeTracks = pc.getReceivers().map(r => r.track).filter(Boolean);
+        
+        // Add new tracks
+        activeTracks.forEach(t => {
+            if (!stream.getTracks().includes(t)) stream.addTrack(t);
+        });
+        
+        // Remove dead tracks
+        stream.getTracks().forEach(t => {
+            if (!activeTracks.includes(t)) stream.removeTrack(t);
+        });
+    }
+    
+    return stream;
   }
 
   // Publish Microphone (Unmute)
