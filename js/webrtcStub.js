@@ -513,12 +513,6 @@ class WebRTCManager {
 
   // Attach Remote Audio Stream to HTML5 Audio Element for seamless background playback
   attachRemoteAudio(socketId, stream) {
-    // BUGFIX: Create an audio-only stream for the hidden <audio> element.
-    // If you assign a stream with a video track to an <audio> tag, Chrome sometimes
-    // disables video frame decoding for that stream, resulting in a black screen in <video> tags.
-    const audioTracks = stream.getAudioTracks();
-    const audioOnlyStream = new MediaStream(audioTracks);
-    
     let audioEl = this.audioElements.get(socketId);
     let shouldInitPlay = false;
     
@@ -531,26 +525,35 @@ class WebRTCManager {
       audioEl.style.display = 'none'; // Invisible background playback
       document.body.appendChild(audioEl);
       this.audioElements.set(socketId, audioEl);
+      
+      // BUGFIX: Create a persistent audio-only stream for this audio tag.
+      // Modifying it in-place prevents Chrome bugs with srcObject reassignments.
+      audioEl.srcObject = new MediaStream();
       shouldInitPlay = true;
     }
     
-    // Only update if tracks changed to prevent popping
-    const currentSrc = audioEl.srcObject;
-    let tracksChanged = true;
-    if (currentSrc) {
-        const currentTracks = currentSrc.getAudioTracks();
-        if (currentTracks.length === audioTracks.length && 
-            currentTracks.every((t, i) => t === audioTracks[i])) {
-            tracksChanged = false;
+    const persistentStream = audioEl.srcObject;
+    const incomingAudioTracks = stream.getAudioTracks();
+    const currentAudioTracks = persistentStream.getAudioTracks();
+    let tracksChanged = false;
+    
+    // Sync new tracks
+    incomingAudioTracks.forEach(t => {
+        if (!currentAudioTracks.includes(t)) {
+            persistentStream.addTrack(t);
+            tracksChanged = true;
         }
-    }
+    });
     
-    if (tracksChanged) {
-      audioEl.srcObject = audioOnlyStream;
-      shouldInitPlay = true;
-    }
+    // Clean old tracks
+    currentAudioTracks.forEach(t => {
+        if (!incomingAudioTracks.includes(t)) {
+            persistentStream.removeTrack(t);
+            tracksChanged = true;
+        }
+    });
     
-    if (!shouldInitPlay) return; // Prevent interrupting playback if stream is already attached
+    if (!shouldInitPlay && !tracksChanged) return; // Prevent interrupting playback if nothing changed
     
     // Play remote audio and handle Chrome/Edge Autoplay Security Policy
     const playAudio = () => {
