@@ -482,10 +482,19 @@ class WebRTCManager {
       }
     };
 
-    // Handle Remote Track (Remote Audio Stream)
+    // Handle Remote Track (Remote Audio/Video Stream)
     pc.ontrack = (event) => {
-      console.log('[WebRTC] Received remote audio track from socket:', targetSocketId, event);
-      const remoteStream = event.streams[0] || new MediaStream([event.track]);
+      console.log('[WebRTC] Received remote track from socket:', targetSocketId, event.track.kind);
+      let remoteStream;
+      if (event.streams && event.streams.length > 0) {
+        remoteStream = event.streams[0];
+      } else {
+        const existingEl = this.audioElements.get(targetSocketId);
+        remoteStream = (existingEl && existingEl.srcObject) ? existingEl.srcObject : new MediaStream();
+        if (!remoteStream.getTracks().includes(event.track)) {
+          remoteStream.addTrack(event.track);
+        }
+      }
       this.attachRemoteAudio(targetSocketId, remoteStream);
     };
 
@@ -505,6 +514,8 @@ class WebRTCManager {
   // Attach Remote Audio Stream to HTML5 Audio Element for seamless background playback
   attachRemoteAudio(socketId, stream) {
     let audioEl = this.audioElements.get(socketId);
+    let shouldInitPlay = false;
+    
     if (!audioEl) {
       audioEl = document.createElement('audio');
       audioEl.autoplay = true;
@@ -514,8 +525,15 @@ class WebRTCManager {
       audioEl.style.display = 'none'; // Invisible background playback
       document.body.appendChild(audioEl);
       this.audioElements.set(socketId, audioEl);
+      shouldInitPlay = true;
     }
-    audioEl.srcObject = stream;
+    
+    if (audioEl.srcObject !== stream) {
+      audioEl.srcObject = stream;
+      shouldInitPlay = true;
+    }
+    
+    if (!shouldInitPlay) return; // Prevent interrupting playback if stream is already attached
     
     // Play remote audio and handle Chrome/Edge Autoplay Security Policy
     const playAudio = () => {
