@@ -783,7 +783,18 @@ io.on('connection', (socket) => {
       const member = findBySocket(room.activeMembers, currentUserProfile.tag);
       if (member) {
         member.isVideoEnabled = isVideoEnabled;
-        broadcastRoomState(currentRoomId, room);
+        broadcastRoomState(currentRoomId);
+      }
+    }
+  });
+
+  socket.on('screen-share-toggle', ({ isScreenSharing }) => {
+    if (currentUserProfile && currentRoomId) {
+      const room = getJunctionRoom(currentRoomId);
+      const member = findBySocket(room.activeMembers, currentUserProfile.tag);
+      if (member) {
+        member.isScreenSharing = isScreenSharing;
+        broadcastRoomState(currentRoomId);
       }
     }
   });

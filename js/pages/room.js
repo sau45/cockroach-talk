@@ -888,8 +888,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const micStatusClass = member.isSpeaking ? 'speaking' : (member.isMuted ? 'muted' : 'unmuted');
       const micStatusTitle = member.isSpeaking ? 'Speaking' : (member.isMuted ? 'Muted' : 'Microphone On');
 
+      const screenSharingClass = member.isScreenSharing ? 'is-screen-sharing' : '';
+
       slot.innerHTML = `
-        <div class="avatar avatar-xl ${genderClass} ${speakingClass}" title="${escapeHTML(member.name)}">
+        <div class="avatar avatar-xl ${genderClass} ${speakingClass} ${screenSharingClass}" title="${escapeHTML(member.name)}">
           <div id="video-container-${member.socketId}" style="width:100%; height:100%; position:absolute; top:0; left:0; z-index:1;"></div>
           ${member.isVideoEnabled 
             ? '' 
@@ -1317,13 +1319,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   if (videoButton) {
     videoButton.addEventListener('click', async () => {
-      isVideoEnabled = !isVideoEnabled;
+      const shouldEnable = !isVideoEnabled;
+      
+      if (shouldEnable) {
+        const confirmed = await showConfirmModal('Turn on Camera', 'Are you sure you want to turn on your camera and broadcast video to the room?');
+        if (!confirmed) return;
+      }
+      
+      isVideoEnabled = shouldEnable;
       
       try {
           await WebRTCStub.setVideoState(isVideoEnabled);
           if (isVideoEnabled) {
               videoButton.classList.add('active-unmuted');
-              if (videoIconContainer) videoIconContainer.innerHTML = '<i class="bi bi-camera-video-fill" style="font-size: 1.2rem;"></i>';
+              if (videoIconContainer) videoIconContainer.innerHTML = '<i class="bi bi-camera-video-fill" style="font-size: 1.2rem; color: var(--accent-gold);"></i>';
           } else {
               videoButton.classList.remove('active-unmuted');
               if (videoIconContainer) videoIconContainer.innerHTML = '<i class="bi bi-camera-video-off" style="font-size: 1.2rem;"></i>';
@@ -1577,6 +1586,68 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!sidebar.contains(e.target) && !mobileJunctionsBtn.contains(e.target)) {
           sidebar.classList.remove('show-mobile-sidebar');
         }
+      }
+    });
+  }
+
+  function showConfirmModal(title, message) {
+    return new Promise((resolve) => {
+      const overlay = document.getElementById('confirm-modal-overlay');
+      const titleEl = document.getElementById('confirm-modal-title');
+      const msgEl = document.getElementById('confirm-modal-message');
+      const btnAccept = document.getElementById('confirm-modal-accept');
+      const btnCancel = document.getElementById('confirm-modal-cancel');
+      
+      if (!overlay) {
+        resolve(true);
+        return;
+      }
+      
+      titleEl.textContent = title;
+      msgEl.textContent = message;
+      overlay.style.display = 'flex';
+      
+      const cleanup = () => {
+        btnAccept.removeEventListener('click', onAccept);
+        btnCancel.removeEventListener('click', onCancel);
+        overlay.style.display = 'none';
+      };
+      
+      const onAccept = () => { cleanup(); resolve(true); };
+      const onCancel = () => { cleanup(); resolve(false); };
+      
+      btnAccept.addEventListener('click', onAccept);
+      btnCancel.addEventListener('click', onCancel);
+    });
+  }
+
+
+
+  const screenshareBtn = document.getElementById('screenshare-button');
+  if (screenshareBtn) {
+    screenshareBtn.addEventListener('click', async () => {
+      // If we are currently sharing, just turn it off without confirmation
+      if (WebRTCStub.isScreenSharing) {
+        await WebRTCStub.toggleScreenShare();
+        screenshareBtn.classList.remove('active');
+        screenshareBtn.style.color = '';
+        screenshareBtn.style.borderColor = '';
+        return;
+      }
+      
+      // If turning on, ask for confirmation
+      const confirmed = await showConfirmModal('Share Screen', 'Are you sure you want to share your screen with the room?');
+      if (!confirmed) return;
+
+      const isSharing = await WebRTCStub.toggleScreenShare();
+      if (isSharing) {
+        screenshareBtn.classList.add('active');
+        screenshareBtn.style.color = 'var(--accent-gold)';
+        screenshareBtn.style.borderColor = 'var(--accent-gold)';
+      } else {
+        screenshareBtn.classList.remove('active');
+        screenshareBtn.style.color = '';
+        screenshareBtn.style.borderColor = '';
       }
     });
   }

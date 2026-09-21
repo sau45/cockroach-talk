@@ -16,6 +16,8 @@ class WebRTCManager {
     this.userProfile = null;
     this.isMuted = true;
     this.isVideoEnabled = false;
+    this.isScreenSharing = false;
+    this.screenStream = null;
     
     // Recording State
     this.mediaRecorder = null;
@@ -625,14 +627,67 @@ class WebRTCManager {
   // Toggle Video Camera
   async setVideoState(shouldEnable) {
     this.isVideoEnabled = shouldEnable;
-
     // Force reinit to grab camera stream
     await this.getLocalMicrophone(true);
-
+    
     if (this.socket) {
       this.socket.emit('video-toggle', { isVideoEnabled: shouldEnable });
     }
+    
+    // Broadcast track replace to all peers
+    if (this.localStream) {
+      const videoTrack = this.localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        await this.syncVideoTracksToAllPeers(videoTrack);
+      } else {
+        await this.syncVideoTracksToAllPeers(null);
+      }
+    }
     return shouldEnable;
+  }
+
+  async toggleScreenShare() {
+    if (this.isScreenSharing) {
+      // Stop screenshare
+      if (this.screenStream) {
+        this.screenStream.getTracks().forEach(t => t.stop());
+        this.screenStream = null;
+      }
+      this.isScreenSharing = false;
+      this.socket.emit('screen-share-toggle', { isScreenSharing: false });
+      
+      // Revert to camera if it was enabled
+      if (this.isVideoEnabled) {
+        await this.getLocalMicrophone(true);
+        if (this.localStream) {
+          const videoTrack = this.localStream.getVideoTracks()[0];
+          await this.syncVideoTracksToAllPeers(videoTrack);
+        }
+      } else {
+        await this.syncVideoTracksToAllPeers(null);
+      }
+      return false;
+    } else {
+      // Start screenshare
+      try {
+        this.screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        
+        // Handle user clicking "Stop sharing" on the browser native bar
+        this.screenStream.getVideoTracks()[0].addEventListener('ended', () => {
+          this.toggleScreenShare(); // Toggle back off
+        });
+        
+        this.isScreenSharing = true;
+        this.socket.emit('screen-share-toggle', { isScreenSharing: true });
+        
+        const videoTrack = this.screenStream.getVideoTracks()[0];
+        await this.syncVideoTracksToAllPeers(videoTrack);
+        return true;
+      } catch (err) {
+        console.error('[WebRTC] Error starting screen share:', err);
+        return false;
+      }
+    }
   }
 
   // Get the combined stream for the UI (Video & Audio visualizer)

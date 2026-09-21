@@ -1002,6 +1002,15 @@
   z-index: 1;
 }
 
+.avatar.is-screen-sharing .avatar-video {
+  object-fit: contain !important;
+}
+
+.avatar.is-screen-sharing {
+  border-radius: 4px !important;
+  background: #000;
+}
+
 .btn-remove-mini:hover {
   background: var(--bg-main);
   transform: scale(1.05);
