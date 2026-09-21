@@ -693,6 +693,9 @@ class WebRTCManager {
   // Get the combined stream for the UI (Video & Audio visualizer)
   getStreamFor(socketId) {
     if (!socketId || socketId === this.socket?.id) {
+        if (this.isScreenSharing && this.screenStream) {
+            return this.screenStream;
+        }
         return this.localStream;
     }
     
