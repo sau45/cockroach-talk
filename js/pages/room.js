@@ -12,6 +12,7 @@ import { renderPermissionModal } from '../partials/modals/permissionModal.js';
 import { renderProfileModal } from '../partials/modals/profileModal.js';
 import { renderAdmitUserModal } from '../partials/modals/admitUserModal.js';
 import { renderQuickCommentModal } from '../partials/modals/quickCommentModal.js';
+import { initThreadedComments } from './threadedComments.js';
 
 // Inject room-specific modals synchronously so they are available for DOM queries
 const roomModalHTML = 
@@ -240,14 +241,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Chat Form Submission
-  if (chatForm) {
-    chatForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const text = chatInput.value.trim();
-      if (text.length > 0) {
-        WebRTCStub.sendChatMessage(text);
-        chatInput.value = '';
+
+  // Submit chat on Enter (without Shift)
+  if (chatInput) {
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault(); // Prevent default newline
+        if (chatForm) {
+          chatForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
       }
     });
   }
@@ -1264,9 +1266,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (socketId === WebRTCStub.socket?.id || socketId === currentSelfSocketId) return;
         spawnEmoji(emoji);
       },
-      onChatMessage: (data) => {
-        handleIncomingChatMessage(data);
-      },
       onRoomStateUpdate: (state) => {
         if (state.name) {
           const titleEl = document.querySelector('.header-title');
@@ -1369,6 +1368,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   await initVoiceConnection();
+  if (WebRTCStub.socket) {
+    initThreadedComments(WebRTCStub.socket);
+  }
 
   // Mic Button Toggle Mute Logic
   if (micButton) {
@@ -1447,41 +1449,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 2500);
   }
 
-  // Handle Incoming Chat Message
-  function handleIncomingChatMessage(data) {
-    if (!chatMessages) return;
-
-    const isSelf = (data.socketId === currentSelfSocketId || (data.tag && String(data.tag) === String(userProfile?.tag)));
-    
-    const bubble = document.createElement('div');
-    bubble.className = `chat-bubble ${isSelf ? 'self' : ''}`;
-    
-    const time = new Date(data.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    // Auto linkify URLs
-    const sanitizedText = escapeHTML(data.text);
-    const linkifiedText = sanitizedText.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color: var(--accent-purple); text-decoration: underline;">$1</a>');
-
-    bubble.innerHTML = `
-      <div class="chat-sender">${escapeHTML(data.name)} <span style="color: var(--text-muted); font-size: 0.65rem; font-weight: normal;">${time}</span></div>
-      <div class="chat-text">${linkifiedText}</div>
-    `;
-
-    chatMessages.appendChild(bubble);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-
-    // Show unread badge if chat is closed and it's not our own message
-    if (!isChatOpen && !isSelf && chatUnreadBadge) {
-      chatUnreadBadge.style.display = 'flex';
-      
-      // Play a soft notification pop sound if possible (optional)
-      try {
-        const audio = new Audio('/sounds/pop.mp3');
-        audio.volume = 0.2;
-        audio.play().catch(e => {}); // Ignore if autoplay blocked
-      } catch (e) {}
-    }
-  }
 
   // Emoji Buttons Click Logic
   const emojiButtons = document.querySelectorAll('.btn-emoji');
@@ -1699,7 +1666,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const screenshareBtn = document.getElementById('screenshare-button');
   if (screenshareBtn) {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isSupported = navigator.mediaDevices && !!navigator.mediaDevices.getDisplayMedia;
+
+    if (isMobile || !isSupported) {
+      screenshareBtn.style.opacity = '0.5';
+      screenshareBtn.style.cursor = 'not-allowed';
+      screenshareBtn.title = 'Screen sharing is not supported on this device';
+    }
+
     screenshareBtn.addEventListener('click', async () => {
+      if (isMobile || !isSupported) {
+        if (typeof showToast === 'function') {
+          showToast('<i class="bi bi-exclamation-triangle-fill"></i> Screen sharing is not supported on this device.');
+        } else {
+          alert('Screen sharing is not supported on this device.');
+        }
+        return;
+      }
+
       // If we are currently sharing, turn it off without modal
       if (WebRTCStub.isScreenSharing) {
         await WebRTCStub.toggleScreenShare();

@@ -77,14 +77,15 @@ export default function(io) {
 
       let depth = 0;
       let rootId = null;
+      let parentDoc = null;
 
       if (parentId) {
-        const parent = await Comment.findById(parentId);
-        if (!parent) return res.status(404).json({ success: false, message: 'Parent not found' });
-        if (parent.roomId !== roomId) return res.status(400).json({ success: false, message: 'Room mismatch' });
+        parentDoc = await Comment.findById(parentId);
+        if (!parentDoc) return res.status(404).json({ success: false, message: 'Parent not found' });
+        if (parentDoc.roomId !== roomId) return res.status(400).json({ success: false, message: 'Room mismatch' });
         
-        depth = Math.min(parent.depth + 1, 6);
-        rootId = parent.rootId || parent._id;
+        depth = Math.min(parentDoc.depth + 1, 6);
+        rootId = parentDoc.rootId || parentDoc._id;
         
         // Increment reply count
         await Comment.findByIdAndUpdate(parentId, { $inc: { replyCount: 1 } });
@@ -99,6 +100,17 @@ export default function(io) {
       await comment.save();
 
       io.to(roomId).emit('thread:new', comment);
+
+      if (parentId && parentDoc) {
+        const preview = parentDoc.body.length > 50 ? parentDoc.body.substring(0, 50) + '...' : parentDoc.body;
+        io.to(roomId).emit('thread:reply-notify', {
+          parentId: parentDoc._id,
+          parentPreview: preview,
+          replyId: comment._id,
+          replyAuthor: comment.authorName
+        });
+      }
+
       res.json({ success: true, comment });
 
     } catch (err) {
@@ -149,21 +161,12 @@ export default function(io) {
         return res.status(403).json({ success: false, message: 'Unauthorized' });
       }
 
-      if (comment.replyCount > 0) {
-        // Soft delete
-        comment.isDeleted = true;
-        comment.body = '';
-        comment.authorName = '[deleted]';
-        await comment.save();
-        io.to(comment.roomId).emit('thread:updated', comment);
-      } else {
-        // Hard delete
-        await Comment.findByIdAndDelete(id);
-        if (comment.parentId) {
-          await Comment.findByIdAndUpdate(comment.parentId, { $inc: { replyCount: -1 } });
-        }
-        io.to(comment.roomId).emit('thread:deleted', { id: comment._id });
+      // Hard delete (completely remove)
+      await Comment.findByIdAndDelete(id);
+      if (comment.parentId) {
+        await Comment.findByIdAndUpdate(comment.parentId, { $inc: { replyCount: -1 } });
       }
+      io.to(comment.roomId).emit('thread:deleted', { id: comment._id });
 
       res.json({ success: true });
     } catch (err) {

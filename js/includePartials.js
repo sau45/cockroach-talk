@@ -53,8 +53,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize edit profile logic
   initProfileEditor();
 
-  // Initialize mandatory 18+ age verification consent modal across all entry points
-  initAgeGate();
+  // Only initialize 18+ consent modal when entering a voice junction room
+  if (window.location.pathname.includes('room.html')) {
+    initAgeGate();
+  }
 
   // Apply saved theme on initial boot
   let savedTheme = storage.getTheme();

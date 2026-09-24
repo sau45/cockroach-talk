@@ -61,6 +61,21 @@
   background: var(--bg-page);
 }
 
+/* Custom Scrollbar for Chat Sidebar Elements */
+.chat-sidebar ::-webkit-scrollbar {
+  width: 8px;
+}
+.chat-sidebar ::-webkit-scrollbar-track {
+  background: var(--bg-page);
+}
+.chat-sidebar ::-webkit-scrollbar-thumb {
+  background: var(--border-dark);
+  border-radius: 4px;
+}
+.chat-sidebar ::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-purple);
+}
+
 .chat-welcome {
   text-align: center;
   font-size: 0.75rem;
@@ -77,11 +92,12 @@
   border: 2px solid var(--border-dark);
   border-radius: var(--radius-sm);
   background: var(--bg-card);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 2px 2px 0px var(--accent-purple);
   max-width: 90%;
   word-wrap: break-word;
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
   font-size: 0.85rem;
 }
 

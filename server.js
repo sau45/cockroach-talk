@@ -1047,6 +1047,16 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('thread:typing', (isTyping) => {
+    if (currentRoomId && currentUserProfile) {
+      socket.to(currentRoomId).emit('thread:typing', {
+        tag: currentUserProfile.tag,
+        name: currentUserProfile.displayName,
+        isTyping
+      });
+    }
+  });
+
   // Handle Explicit Leave Room
   const handleExplicitLeave = () => {
     if (currentRoomId && junctionRooms.has(currentRoomId)) {

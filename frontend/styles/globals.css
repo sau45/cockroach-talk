@@ -1,0 +1,136 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 7%;
+    --foreground: 0 0% 93%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 93%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 93%;
+    --primary: 258 100% 73%;
+    --primary-foreground: 0 0% 7%;
+    --secondary: 240 4% 16%;
+    --secondary-foreground: 0 0% 93%;
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 258 100% 73%;
+    --accent-foreground: 0 0% 7%;
+    --destructive: 0 100% 71%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 24%;
+    --input: 240 6% 24%;
+    --ring: 258 100% 73%;
+  }
+
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  body[data-scroll-locked] {
+    padding-right: 0px !important;
+    margin-right: 0px !important;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased selection:bg-primary selection:text-primary-foreground;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-mono;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #121212;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272A;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3F3F46;
+}
+
+/* Bulletproof no-scrollbar utility */
+.no-scrollbar::-webkit-scrollbar,
+.no-scrollbar *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+.no-scrollbar::-webkit-scrollbar-track,
+.no-scrollbar::-webkit-scrollbar-thumb {
+  display: none !important;
+  background: transparent !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Silky-Smooth Hardware-Accelerated Dropdown Animations */
+@keyframes menuSlideUpSmooth {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes menuSlideDownSmooth {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
+.smooth-dropdown[data-state="open"] {
+  animation: menuSlideUpSmooth 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: bottom center;
+  will-change: transform, opacity;
+}
+
+.smooth-dropdown[data-state="closed"] {
+  animation: menuSlideDownSmooth 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: bottom center;
+  will-change: transform, opacity;
+}
+
+/* Emoji Picker React Neo-Brutalist Dark Theme Overrides */
+.EmojiPickerReact.epr-dark-theme,
+.EmojiPickerReact {
+  --epr-bg-color: #1B1B1B !important;
+  --epr-category-label-bg-color: #1B1B1B !important;
+  --epr-picker-border-color: #3F3F46 !important;
+  --epr-search-border-color: #3F3F46 !important;
+  --epr-hover-bg-color: #27272A !important;
+  --epr-focus-bg-color: #27272A !important;
+  --epr-text-color: #EDEDED !important;
+  --epr-search-input-bg-color: #121212 !important;
+  --epr-search-input-text-color: #EDEDED !important;
+  --epr-highlight-color: #9F75FF !important;
+  --epr-category-icon-active-color: #9F75FF !important;
+  border: none !important;
+  font-family: inherit !important;
+}
+
+
