@@ -38,6 +38,16 @@ app.use(mongoSanitize());
 // Session Identity Extraction
 app.use(sessionMiddleware);
 
+// Render & Deployment Health Check Endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'cockroachtalk-backend',
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // API Routes
 app.use('/api/comments', createCommentsRouter(io));
 app.use('/api/rooms', createRoomsRouter(io));

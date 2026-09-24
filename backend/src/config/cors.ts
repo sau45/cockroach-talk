@@ -1,20 +1,35 @@
 import { CorsOptions } from 'cors';
 import { env } from './env.js';
 
-const allowedOrigins = [
-  env.CORS_ORIGIN,
-  'http://localhost:3000',
-  'http://127.0.0.1:3000'
-];
+const configuredOrigins = (env.CORS_ORIGIN || '')
+  .split(',')
+  .map((o) => o.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
+const devOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
+const isProduction = process.env.NODE_ENV === 'production';
 
 export const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (e.g., mobile apps, curl) or matched origins
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Allow during local development or match
+    // Allow requests with no origin (e.g., curl, server-to-server health checks)
+    if (!origin) {
+      return callback(null, true);
     }
+
+    const cleanOrigin = origin.replace(/\/$/, '');
+
+    if (configuredOrigins.includes(cleanOrigin)) {
+      return callback(null, true);
+    }
+
+    // In local development, also allow localhost
+    if (!isProduction && devOrigins.includes(cleanOrigin)) {
+      return callback(null, true);
+    }
+
+    // Reject unknown origins in production
+    return callback(new Error(`CORS policy violation: Origin '${origin}' is not authorized.`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],

@@ -4,6 +4,7 @@ import { z } from 'zod';
 dotenv.config();
 
 const envSchema = z.object({
+  NODE_ENV: z.string().default('development'),
   PORT: z.string().default('8000').transform((val) => parseInt(val, 10)),
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
   MONGODB_DB: z.string().default('cockroachtalk'),
@@ -12,6 +13,7 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().default('admin123'),
   TURN_USERNAME: z.string().optional(),
   TURN_CREDENTIAL: z.string().optional(),
+  PERSPECTIVE_API_KEY: z.string().optional(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

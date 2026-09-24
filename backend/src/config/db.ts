@@ -17,9 +17,12 @@ export let reportsCollection: Collection | null = null;
 
 export async function connectDB(): Promise<void> {
   try {
-    // Connect Mongoose for Schema models
+    // Connect Mongoose for Schema models with production pooling & timeouts
     await mongoose.connect(env.MONGODB_URI, {
-      dbName: env.MONGODB_DB
+      dbName: env.MONGODB_DB,
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000
     });
     console.log('✅ Mongoose connected for Threaded Comments & Models.');
 
