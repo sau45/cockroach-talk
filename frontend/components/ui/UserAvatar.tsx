@@ -76,6 +76,7 @@ export function UserAvatar({
           isSpeaking && 'ring-2 ring-primary scale-105',
           className
         )}
+        style={{ borderColor: palette.hex }}
       >
         <span className={cn('leading-none', sizeConfig.emoji)}>{avatarValue}</span>
       </div>
@@ -97,6 +98,7 @@ export function UserAvatar({
           isSpeaking && 'ring-2 ring-primary scale-105',
           className
         )}
+        style={{ borderColor: palette.hex }}
         dangerouslySetInnerHTML={{ __html: svgString }}
       />
     );
@@ -115,6 +117,11 @@ export function UserAvatar({
         isSpeaking && 'ring-2 ring-primary scale-105',
         className
       )}
+      style={{
+        borderColor: palette.hex,
+        backgroundColor: `${palette.hex}18`,
+        color: palette.hex
+      }}
     >
       <span>{initials}</span>
     </div>

@@ -42,7 +42,7 @@ export function createCommentsController(io: Server) {
       try {
         const parsed = postCommentSchema.parse(req.body);
         const authorTag = req.user?.tag || (req.body.authorTag as string);
-        const authorName = req.user?.handle || (req.body.authorName as string) || generateRealisticName(req.user?.gender);
+        const authorName = req.user?.handle || (req.body.authorName as string) || generateRealisticName(req.user?.gender, authorTag);
 
         if (!authorTag) {
           return res.status(401).json({ success: false, message: 'Missing user identity' });

@@ -10,41 +10,41 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: '#121212',
-        foreground: '#EDEDED',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
         card: {
-          DEFAULT: '#1B1B1B',
-          foreground: '#EDEDED'
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))'
         },
         popover: {
-          DEFAULT: '#1B1B1B',
-          foreground: '#EDEDED'
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))'
         },
         primary: {
-          DEFAULT: '#9F75FF',
-          foreground: '#111111'
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))'
         },
         secondary: {
-          DEFAULT: '#27272A',
-          foreground: '#EDEDED'
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))'
         },
         muted: {
-          DEFAULT: '#27272A',
-          foreground: '#A1A1AA'
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))'
         },
         accent: {
-          DEFAULT: '#9F75FF',
-          foreground: '#111111',
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
           coral: '#FF6B6B',
           gold: '#FCD34D'
         },
         destructive: {
-          DEFAULT: '#FF6B6B',
-          foreground: '#FFFFFF'
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))'
         },
-        border: '#3F3F46',
-        input: '#27272A',
-        ring: '#9F75FF',
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

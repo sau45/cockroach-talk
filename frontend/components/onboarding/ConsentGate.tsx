@@ -26,6 +26,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuthorTag } from '@/hooks/useAuthorTag';
 
+import { cn } from '@/lib/utils';
+
 export const CURRENT_CONSENT_VERSION = 1;
 export const CONSENT_STORAGE_KEY = 'ct_consent_state';
 
@@ -67,14 +69,13 @@ export function ConsentGate() {
 
   const { submitConsent } = useAuthorTag();
 
-  // Only gate when the user tries to enter a junction room (e.g. /room/...)
+  // Only gate automatically when the user tries to enter a junction room (e.g. /room/...)
   const isJunctionRoute = pathname?.startsWith('/room');
 
   useEffect(() => {
     setIsMounted(true);
 
     if (!isJunctionRoute) {
-      setIsOpen(false);
       return;
     }
 
@@ -87,6 +88,19 @@ export function ConsentGate() {
     setIsOpen(true);
     setStep(1);
   }, [pathname, isJunctionRoute]);
+
+  useEffect(() => {
+    const handleOpenEvent = (e: any) => {
+      setIsOpen(true);
+      const isComplete = isConsentComplete();
+      setStep(e.detail?.step || (isComplete ? 3 : 1));
+    };
+
+    window.addEventListener('open-consent-gate', handleOpenEvent as EventListener);
+    return () => {
+      window.removeEventListener('open-consent-gate', handleOpenEvent as EventListener);
+    };
+  }, []);
 
   if (!isMounted || !isOpen) {
     return null;
@@ -146,11 +160,20 @@ export function ConsentGate() {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!isJunctionRoute) setIsOpen(open);
+    }}>
       <DialogContent
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        className="max-w-md w-[92vw] border-4 border-border bg-card shadow-brutal-lg rounded-brutal-md p-6 sm:p-7 gap-5 [&>button]:hidden"
+        onPointerDownOutside={(e) => {
+          if (isJunctionRoute) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (isJunctionRoute) e.preventDefault();
+        }}
+        className={cn(
+          "max-w-md w-[92vw] border-4 border-border bg-card shadow-brutal-lg rounded-brutal-md p-6 sm:p-7 gap-5",
+          isJunctionRoute && "[&>button]:hidden"
+        )}
       >
         {/* STEP 1: Age Confirmation (18+) */}
         {step === 1 && (
@@ -350,8 +373,8 @@ export function ConsentGate() {
                     <Users className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="font-mono font-bold text-xs uppercase text-foreground">Prefer Not to Say / Random</p>
-                    <p className="text-[11px] text-muted-foreground font-sans">Samples across all cultural and regional pools</p>
+                    <p className="font-mono font-bold text-xs uppercase text-foreground">Prefer Not to Say / Anonymous</p>
+                    <p className="text-[11px] text-muted-foreground font-sans">Assigns a unique identifier (e.g. Cockroach #1042)</p>
                   </div>
                 </div>
                 {selectedGender === 'skip' && <Check className="h-4 w-4 text-primary" />}

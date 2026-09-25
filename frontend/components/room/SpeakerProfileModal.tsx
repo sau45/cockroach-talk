@@ -186,7 +186,10 @@ export function SpeakerProfileModal({
               </div>
 
               {/* Name & Role */}
-              <h2 className={cn("text-lg font-black font-mono flex items-center gap-1.5 mt-1", palette.textClass)}>
+              <h2
+                className={cn("text-lg font-black font-mono flex items-center gap-1.5 mt-1", palette.textClass)}
+                style={{ color: palette.hex }}
+              >
                 <span>{speaker.name}</span>
                 {isSelf && (
                   <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-mono">
@@ -194,7 +197,15 @@ export function SpeakerProfileModal({
                   </Badge>
                 )}
                 {speaker.statusTag && (
-                  <Badge variant="secondary" className={cn("text-[10px] py-0 px-1.5 font-mono border", palette.borderClass, palette.bgClass)}>
+                  <Badge
+                    variant="secondary"
+                    className={cn("text-[10px] py-0 px-1.5 font-mono border", palette.borderClass, palette.bgClass)}
+                    style={{
+                      borderColor: palette.hex,
+                      backgroundColor: `${palette.hex}18`,
+                      color: palette.hex
+                    }}
+                  >
                     {speaker.statusTag}
                   </Badge>
                 )}
@@ -203,7 +214,7 @@ export function SpeakerProfileModal({
               <div className="flex flex-wrap items-center justify-center gap-1.5 mt-1">
                 {isSpeakerLead ? (
                   <Badge className="bg-accent-gold text-black font-mono text-[11px] gap-1 font-bold">
-                    <Star className="h-3 w-3 fill-black" /> Room Lead (Host)
+                    <Star className="h-3 w-3 fill-black" /> Room Lead
                   </Badge>
                 ) : isSpeakerMod ? (
                   <Badge className="bg-accent-gold/20 text-accent-gold border-accent-gold/40 font-mono text-[11px] gap-1 font-bold">
@@ -225,6 +236,11 @@ export function SpeakerProfileModal({
                   <Badge
                     variant="secondary"
                     className={cn('text-xs font-mono py-0.5 px-2 border', palette.borderClass, palette.bgClass)}
+                    style={{
+                      borderColor: palette.hex,
+                      backgroundColor: `${palette.hex}18`,
+                      color: palette.hex
+                    }}
                   >
                     {activeStatusTag}
                   </Badge>

@@ -25,17 +25,19 @@ export function createAuthController() {
   });
 
   function formatUserSession(user: any) {
+    const hasChosen = Boolean(user?.hasChosenGender);
     return {
-      tag: user.tag,
-      handle: user.handle,
-      gender: user.gender || 'skip',
-      bio: user.bio || '',
-      profilePicture: user.profilePicture || '',
-      avatarType: user.avatarType || 'initials',
-      avatarValue: user.avatarValue || '',
-      accentColor: user.accentColor || 'cyber-purple',
-      bubbleStyle: user.bubbleStyle || 'rounded',
-      statusTag: user.statusTag || ''
+      tag: user?.tag || '',
+      handle: hasChosen ? (user?.handle || '') : '',
+      hasChosenGender: hasChosen,
+      gender: user?.gender || '',
+      bio: user?.bio || '',
+      profilePicture: user?.profilePicture || '',
+      avatarType: user?.avatarType || 'initials',
+      avatarValue: user?.avatarValue || '',
+      accentColor: user?.accentColor || 'cyber-purple',
+      bubbleStyle: user?.bubbleStyle || 'rounded',
+      statusTag: user?.statusTag || ''
     };
   }
 
@@ -45,9 +47,24 @@ export function createAuthController() {
         let tag = req.user?.tag;
         let handle = req.user?.handle;
         let existingUser = null;
+        const hasConsentQuery = req.query.hasConsent;
 
         if (tag) {
           existingUser = await User.findOne({ tag });
+        }
+
+        if (hasConsentQuery === 'false' && existingUser) {
+          existingUser.hasChosenGender = false;
+          existingUser.handle = '';
+          existingUser.gender = '';
+          await existingUser.save();
+        } else if (existingUser && existingUser.hasChosenGender) {
+          // If user chose skip / prefer_not_to_say, ensure their handle is Cockroach #<tag> instead of a legacy human name
+          const isSkip = !existingUser.gender || existingUser.gender === 'skip' || existingUser.gender === 'prefer_not_to_say';
+          if (isSkip && (!existingUser.handle || !existingUser.handle.startsWith('Cockroach #'))) {
+            existingUser.handle = `Cockroach #${existingUser.tag}`;
+            await existingUser.save();
+          }
         }
 
         if (!existingUser) {
@@ -95,9 +112,10 @@ export function createAuthController() {
           existingUser = await User.findOne({ tag });
         } else {
           // Regenerate handle matching user's selected gender pool
-          const handle = generateRealisticName(gender);
+          const handle = generateRealisticName(gender, existingUser.tag);
           existingUser.handle = handle;
           existingUser.gender = gender;
+          existingUser.hasChosenGender = true;
           existingUser.lastActiveAt = new Date();
           await existingUser.save();
         }
@@ -219,9 +237,10 @@ export function createAuthController() {
         if (data.avatarType !== undefined) user.avatarType = data.avatarType;
         if (data.avatarValue !== undefined) user.avatarValue = data.avatarValue;
 
-        // 4. Accent Color
+        // 4. Accent Color (Preset token or hex color code from Color Picker)
         if (data.accentColor !== undefined) {
-          if (ACCENT_COLOR_TOKENS.includes(data.accentColor)) {
+          const isHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(data.accentColor);
+          if (ACCENT_COLOR_TOKENS.includes(data.accentColor) || isHex) {
             user.accentColor = data.accentColor;
           }
         }
@@ -231,7 +250,13 @@ export function createAuthController() {
 
         // 6. Bio & Gender
         if (data.bio !== undefined) user.bio = data.bio;
-        if (data.gender !== undefined) user.gender = data.gender;
+        if (data.gender !== undefined) {
+          user.gender = data.gender;
+          user.hasChosenGender = true;
+        }
+        if (data.handle && data.handle.trim() !== '') {
+          user.hasChosenGender = true;
+        }
 
         user.lastActiveAt = new Date();
         await user.save();
@@ -262,8 +287,18 @@ export function createAuthController() {
         }
 
         // Option A: Safe re-roll from regional name generators
-        const newHandle = generateRealisticName(user.gender);
+        const isAnonymous = !user.gender || user.gender === 'skip' || user.gender === 'prefer_not_to_say';
+        let newHandle: string;
+        if (isAnonymous) {
+          // Generate a fresh unique random 4-digit identifier for Cockroach pseudonym so re-rolling generates a new distinct identity
+          const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+          newHandle = `Cockroach #${randomSuffix}`;
+        } else {
+          newHandle = generateRealisticName(user.gender, user.tag);
+        }
+
         user.handle = newHandle;
+        user.hasChosenGender = true;
         user.lastActiveAt = new Date();
         await user.save();
 

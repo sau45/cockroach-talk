@@ -84,16 +84,16 @@ export function MessageBubble({
       <div
         id={`comment-${comment._id}`}
         className={cn(
-          'p-3 my-2 border-2 bg-card shadow-brutal-dark-sm transition-all duration-300',
-          palette.borderClass,
+          'px-2 py-1.5 sm:px-2.5 sm:py-2 my-0.5 sm:my-1 border sm:border-2 bg-card shadow-sm transition-all duration-200',
           bubbleStyle === 'sharp' && 'rounded-none',
-          bubbleStyle === 'rounded' && 'rounded-brutal-md',
+          bubbleStyle === 'rounded' && 'rounded-brutal-sm',
           bubbleStyle === 'outline' && 'rounded-brutal-sm border-dashed',
           isHighlighted && 'ring-2 ring-primary scale-[1.01]'
         )}
+        style={{ borderColor: palette.hex }}
       >
-        <div className="flex justify-between items-center text-xs mb-1.5 gap-2">
-          <div className="flex items-center gap-2 truncate">
+        <div className="flex justify-between items-center text-[11px] sm:text-xs mb-0.5 gap-1.5">
+          <div className="flex items-center gap-1.5 truncate">
             <UserAvatar
               name={comment.authorName}
               tag={comment.authorTag}
@@ -101,56 +101,64 @@ export function MessageBubble({
               avatarValue={comment.authorAvatarValue}
               accentColor={comment.authorAccentColor}
               size="xs"
+              className="h-5 w-5 sm:h-6 sm:w-6 text-[9px] sm:text-[10px]"
             />
 
             {!isMine ? (
               <button
-                onClick={() => setReportOpen(true)}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setReportOpen(true);
+                }}
                 title="Click to report user"
-                className={cn(
-                  'font-bold font-mono truncate hover:underline transition-colors text-left',
-                  palette.textClass
-                )}
+                className="font-bold font-mono text-[11px] sm:text-xs truncate hover:underline transition-colors text-left cursor-pointer"
+                style={{ color: palette.hex }}
               >
                 {comment.authorName}
               </button>
             ) : (
-              <span className={cn('font-bold font-mono truncate', palette.textClass)}>
+              <span
+                className="font-bold font-mono text-[11px] sm:text-xs truncate"
+                style={{ color: palette.hex }}
+              >
                 {comment.authorName}
               </span>
             )}
 
             {comment.authorStatus && (
               <span
-                className={cn(
-                  'text-[9px] font-mono px-1.5 py-0.5 rounded border max-w-[140px] truncate hidden sm:inline-block',
-                  palette.borderClass,
-                  palette.bgClass
-                )}
+                className="text-[8.5px] font-mono px-1 py-0.5 rounded border max-w-[120px] truncate hidden sm:inline-block leading-none"
+                style={{
+                  borderColor: palette.hex,
+                  backgroundColor: `${palette.hex}18`,
+                  color: palette.hex
+                }}
               >
                 {comment.authorStatus}
               </span>
             )}
 
-            <span className="text-muted-foreground shrink-0 font-sans text-[11px]">· {time}</span>
+            <span className="text-muted-foreground shrink-0 font-sans text-[9.5px] sm:text-[10px]">· {time}</span>
           </div>
 
           {isMine && (
             <button
+              type="button"
               onClick={handleDeleteClick}
               aria-label="Delete comment"
               className={cn(
-                'p-1 text-muted-foreground hover:text-destructive transition-colors rounded text-xs flex items-center gap-1',
+                'p-0.5 text-muted-foreground hover:text-destructive transition-colors rounded text-xs flex items-center gap-1 cursor-pointer',
                 confirmDelete && 'text-destructive font-bold'
               )}
             >
               {confirmDelete ? (
                 <>
                   <AlertCircle className="h-3 w-3" />
-                  <span>Sure?</span>
+                  <span className="text-[10px]">Sure?</span>
                 </>
               ) : (
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-3 w-3" />
               )}
             </button>
           )}
@@ -163,11 +171,11 @@ export function MessageBubble({
           onScrollToParent={onScrollToParent}
         />
 
-        <p className="text-sm text-foreground whitespace-pre-wrap break-words my-1 font-sans">
+        <p className="text-xs sm:text-sm text-foreground whitespace-pre-wrap break-words my-0.5 font-sans leading-tight sm:leading-snug">
           {comment.body}
         </p>
 
-        <div className="flex items-center gap-4 mt-2 pt-1 border-t border-border/40 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2.5 sm:gap-3 mt-1 pt-0.5 text-[10px] sm:text-[11px] text-muted-foreground/80">
           <VoteControls
             score={comment.score}
             userVote={userVote}
@@ -176,20 +184,25 @@ export function MessageBubble({
           />
 
           <button
+            type="button"
             onClick={() => onReply(comment._id, comment.authorName)}
-            className="flex items-center gap-1 hover:text-foreground transition-colors font-medium"
+            className="flex items-center gap-1 hover:text-foreground transition-colors font-medium text-[10px] sm:text-[11px] cursor-pointer"
           >
-            <Reply className="h-3.5 w-3.5" />
+            <Reply className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
             <span>Reply</span>
           </button>
 
           {!isMine && (
             <button
-              onClick={() => setReportOpen(true)}
-              className="flex items-center gap-1 hover:text-accent-coral transition-colors font-medium ml-auto"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setReportOpen(true);
+              }}
+              className="flex items-center gap-1 hover:text-accent-coral transition-colors font-medium ml-auto text-[10px] sm:text-[11px] cursor-pointer"
               title="Report this message"
             >
-              <Flag className="h-3.5 w-3.5" />
+              <Flag className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
               <span>Report</span>
             </button>
           )}

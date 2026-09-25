@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Mic, Users, Lock } from 'lucide-react';
+import { ArrowLeft, Mic, Users, Lock, Info } from 'lucide-react';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuthorTag } from '@/hooks/useAuthorTag';
 import { useRoom } from '@/hooks/useRoom';
@@ -122,7 +122,7 @@ export default function RoomPage() {
   const isPresenter = isScreenSharing;
 
   return (
-    <div className="relative min-h-[calc(100vh-64px)] pb-32">
+    <div className="relative min-h-[calc(100dvh-64px)] pb-36 sm:pb-28">
       {/* Recording In Progress Notification Banner (Privacy & Transparency) */}
       {(isRecording || isRoomBeingRecorded) && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-40 px-4 py-1.5 rounded-full border-2 border-destructive bg-destructive text-white font-mono text-xs font-bold flex items-center gap-2 shadow-brutal animate-pulse">
@@ -152,54 +152,59 @@ export default function RoomPage() {
       )}
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* Top Header */}
-        <div className="flex items-center justify-between gap-4 border-b-2 border-border pb-4">
-          <div className="flex items-center gap-3">
-            <Button asChild variant="outline" size="icon" className="h-9 w-9">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-6 space-y-4 sm:space-y-6">
+        {/* Top Header: Sleek single-line layout with right-column badges */}
+        <div className="flex items-center justify-between gap-2 sm:gap-4 border-b-2 border-border pb-3 sm:pb-4">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+            <Button asChild variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 shrink-0">
               <Link href="/junctions" title="Back to Junctions">
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </Link>
             </Button>
 
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black font-mono uppercase text-foreground">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h1 className="text-sm sm:text-base md:text-lg font-bold font-mono uppercase text-foreground truncate max-w-[180px] sm:max-w-md">
                   {roomState?.name || roomId}
                 </h1>
                 {roomState?.isCustom && (
-                  <Badge variant="secondary" className="text-[10px]">
-                    Custom Room
+                  <Badge variant="secondary" className="text-[9px] py-0 px-1 font-mono">
+                    Custom
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground font-mono">
-                {role === 'active'
-                  ? isSeniorMod
-                    ? '★ You are the ROOM LEAD (Stage Host)'
-                    : isMyModerator
-                    ? '🛡️ You are an ACTIVE STAGE MODERATOR'
-                    : '🎙️ You are an ACTIVE SPEAKER on stage'
-                  : myQueuePosition
-                  ? `⏳ You are #${myQueuePosition} in the WAITING QUEUE (Raise hand to speak)`
-                  : '⏳ You are in the WAITING QUEUE / Audience'}
+              <p className="text-[10px] sm:text-xs text-muted-foreground font-mono flex items-center gap-1.5 mt-0.5 truncate">
+                {role === 'active' ? (
+                  isSeniorMod ? (
+                    <span className="text-accent-gold font-bold">★ Room Lead</span>
+                  ) : isMyModerator ? (
+                    <span className="text-accent-gold font-bold">🛡️ Stage Mod</span>
+                  ) : (
+                    <span>🎙️ Speaker</span>
+                  )
+                ) : myQueuePosition ? (
+                  <span>⏳ Queue #{myQueuePosition}</span>
+                ) : (
+                  <span>⏳ Audience</span>
+                )}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Right column: Room Lead & Stage counter stacked vertically to conserve space */}
+          <div className="flex flex-col items-end justify-center gap-1 shrink-0">
             {role === 'active' && isSeniorMod ? (
-              <Badge className="bg-accent-gold text-black font-mono text-xs py-1 px-2.5 gap-1 font-bold shadow-sm">
+              <Badge className="bg-accent-gold text-black font-mono text-[9px] sm:text-xs py-0.5 px-1.5 sm:px-2 gap-1 font-bold shadow-sm whitespace-nowrap">
                 ★ Room Lead
               </Badge>
             ) : role === 'active' && isMyModerator ? (
-              <Badge className="bg-accent-gold/20 text-accent-gold border-accent-gold/40 font-mono text-xs py-1 px-2.5 gap-1 font-bold">
+              <Badge className="bg-accent-gold/20 text-accent-gold border-accent-gold/40 font-mono text-[9px] sm:text-xs py-0.5 px-1.5 sm:px-2 gap-1 font-bold whitespace-nowrap">
                 🛡️ Stage Mod
               </Badge>
             ) : null}
 
-            <Badge variant="default" className="text-xs font-mono py-1 px-3 gap-1.5">
-              <Mic className="h-3.5 w-3.5" /> Stage: {roomState?.activeMembers.length || 0}/8
+            <Badge variant="default" className="text-[9px] sm:text-xs font-mono py-0.5 px-1.5 sm:px-2 gap-1 font-bold whitespace-nowrap">
+              <Mic className="h-2.5 sm:h-3 w-2.5 sm:w-3" /> Stage: {roomState?.activeMembers.length || 0}/8
             </Badge>
           </div>
         </div>
@@ -207,7 +212,7 @@ export default function RoomPage() {
         {/* Two-Column Layout */}
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* Main Stage & Queue Column */}
-          <div className="flex-1 w-full space-y-6">
+          <div className="flex-1 w-full space-y-5">
             {/* Screen Share Area */}
             {activeStream && (
               <PresentationArea
@@ -219,7 +224,7 @@ export default function RoomPage() {
             )}
 
             {/* Active Stage Section */}
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {/* Device Permission Error Notice */}
               <PermissionNotice
                 error={permissionError || cameraError}
@@ -230,16 +235,21 @@ export default function RoomPage() {
               />
 
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-mono font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <h2 className="text-xs sm:text-sm font-mono font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <span>🔥 Speaker Stage</span>
                   {isMyModerator && (
-                    <span className="text-[10px] text-accent-gold bg-accent-gold/10 px-1.5 py-0.5 rounded border border-accent-gold/40">
-                      ★ Moderator Controls Active
+                    <span className="group relative flex items-center cursor-help">
+                      <span className="flex items-center gap-1 text-[9px] text-accent-gold bg-accent-gold/10 px-1 py-0.5 rounded border border-accent-gold/40">
+                        ★ <Info className="h-2.5 w-2.5" />
+                      </span>
+                      <span className="absolute left-1/2 -translate-x-1/2 top-full mt-1.5 w-max opacity-0 group-hover:opacity-100 transition-opacity bg-black/90 text-[10px] text-accent-gold px-2 py-1 rounded border border-accent-gold/40 z-50 pointer-events-none">
+                        Moderator Controls Active
+                      </span>
                     </span>
                   )}
                 </h2>
 
-                <div className="text-xs font-mono font-bold text-muted-foreground bg-card border border-border px-2 py-0.5 rounded-brutal-sm">
+                <div className="text-[10px] sm:text-xs font-mono font-bold text-muted-foreground bg-card border border-border px-1.5 sm:px-2 py-0.5 rounded-brutal-sm">
                   <span>{roomState?.activeMembers?.length || 0}/8 Speakers</span>
                 </div>
               </div>
@@ -262,10 +272,10 @@ export default function RoomPage() {
             </div>
 
             {/* Waiting Queue */}
-            <div className="space-y-3 pt-4 border-t-2 border-border/80">
+            <div className="space-y-2.5 pt-3 border-t-2 border-border/80">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-mono font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Users className="h-4 w-4" />
+                <h3 className="text-xs sm:text-sm font-mono font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5" />
                   <span>Waiting Queue ({roomState?.waitingQueue.length || 0})</span>
                 </h3>
               </div>

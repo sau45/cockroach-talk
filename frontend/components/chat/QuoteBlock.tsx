@@ -18,7 +18,7 @@ export function QuoteBlock({ parentId, comments, myTag, onScrollToParent }: Quot
 
   if (!parent) {
     return (
-      <div className="mb-2 rounded-brutal-sm border-l-4 border-border bg-card/60 p-2 text-xs italic text-muted-foreground line-clamp-2">
+      <div className="mb-1 rounded-brutal-sm border-l-2 sm:border-l-4 border-border bg-card/60 p-1.5 sm:p-2 text-[11px] sm:text-xs italic text-muted-foreground line-clamp-2">
         🚫 This message was deleted
       </div>
     );
@@ -37,7 +37,7 @@ export function QuoteBlock({ parentId, comments, myTag, onScrollToParent }: Quot
     <div
       onClick={() => onScrollToParent && onScrollToParent(parentId)}
       className={cn(
-        'mb-2 cursor-pointer rounded-brutal-sm border-l-4 border-primary bg-card/80 p-2 text-xs transition-colors hover:bg-card',
+        'mb-1 cursor-pointer rounded-brutal-sm border-l-2 sm:border-l-4 border-primary bg-card/80 p-1.5 sm:p-2 text-[11px] sm:text-xs transition-colors hover:bg-card',
         parent.isDeleted && 'border-border opacity-70'
       )}
     >

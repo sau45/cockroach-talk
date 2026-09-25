@@ -182,7 +182,129 @@ export function useRoom({ socket, roomId, user, password, enabled = true }: UseR
       socket.off('banned', handleBanned);
       socket.emit('leave-room');
     };
-  }, [socket, roomId, user, password]);
+  }, [socket, roomId, user?.tag, password, enabled]);
+
+  // Live profile synchronization (e.g. re-rolled name, avatar changes) with room & stage
+  useEffect(() => {
+    if (!socket || !user?.handle || !roomId) return;
+
+    socket.emit('update-profile', {
+      roomId,
+      handle: user.handle,
+      avatarType: user.avatarType,
+      avatarValue: user.avatarValue,
+      accentColor: user.accentColor,
+      bubbleStyle: user.bubbleStyle,
+      statusTag: user.statusTag
+    });
+
+    setRoomState((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        activeMembers: prev.activeMembers.map((m) => {
+          if (String(m.tag) === String(user.tag) || (socket.id && m.socketId === socket.id)) {
+            return {
+              ...m,
+              name: user.handle,
+              displayName: user.handle,
+              avatarType: user.avatarType || m.avatarType,
+              avatarValue: user.avatarValue ?? m.avatarValue,
+              accentColor: user.accentColor || m.accentColor,
+              bubbleStyle: user.bubbleStyle || m.bubbleStyle,
+              statusTag: user.statusTag ?? m.statusTag
+            };
+          }
+          return m;
+        }),
+        waitingQueue: prev.waitingQueue.map((q) => {
+          if (String(q.tag) === String(user.tag) || (socket.id && q.socketId === socket.id)) {
+            return {
+              ...q,
+              name: user.handle,
+              displayName: user.handle,
+              avatarType: user.avatarType || q.avatarType,
+              avatarValue: user.avatarValue ?? q.avatarValue,
+              accentColor: user.accentColor || q.accentColor,
+              bubbleStyle: user.bubbleStyle || q.bubbleStyle,
+              statusTag: user.statusTag ?? q.statusTag
+            };
+          }
+          return q;
+        })
+      };
+    });
+  }, [
+    socket,
+    roomId,
+    user?.tag,
+    user?.handle,
+    user?.avatarType,
+    user?.avatarValue,
+    user?.accentColor,
+    user?.bubbleStyle,
+    user?.statusTag
+  ]);
+
+  // Also listen for ct-user-updated window event for instant cross-component sync
+  useEffect(() => {
+    const handleUserUpdatedEvent = (e: any) => {
+      const updatedUser: UserProfile = e.detail;
+      if (!updatedUser?.handle || !socket || !roomId) return;
+
+      socket.emit('update-profile', {
+        roomId,
+        handle: updatedUser.handle,
+        avatarType: updatedUser.avatarType,
+        avatarValue: updatedUser.avatarValue,
+        accentColor: updatedUser.accentColor,
+        bubbleStyle: updatedUser.bubbleStyle,
+        statusTag: updatedUser.statusTag
+      });
+
+      setRoomState((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          activeMembers: prev.activeMembers.map((m) => {
+            if (String(m.tag) === String(updatedUser.tag) || (socket.id && m.socketId === socket.id)) {
+              return {
+                ...m,
+                name: updatedUser.handle,
+                displayName: updatedUser.handle,
+                avatarType: updatedUser.avatarType || m.avatarType,
+                avatarValue: updatedUser.avatarValue ?? m.avatarValue,
+                accentColor: updatedUser.accentColor || m.accentColor,
+                bubbleStyle: updatedUser.bubbleStyle || m.bubbleStyle,
+                statusTag: updatedUser.statusTag ?? m.statusTag
+              };
+            }
+            return m;
+          }),
+          waitingQueue: prev.waitingQueue.map((q) => {
+            if (String(q.tag) === String(updatedUser.tag) || (socket.id && q.socketId === socket.id)) {
+              return {
+                ...q,
+                name: updatedUser.handle,
+                displayName: updatedUser.handle,
+                avatarType: updatedUser.avatarType || q.avatarType,
+                avatarValue: updatedUser.avatarValue ?? q.avatarValue,
+                accentColor: updatedUser.accentColor || q.accentColor,
+                bubbleStyle: updatedUser.bubbleStyle || q.bubbleStyle,
+                statusTag: updatedUser.statusTag ?? q.statusTag
+              };
+            }
+            return q;
+          })
+        };
+      });
+    };
+
+    window.addEventListener('ct-user-updated', handleUserUpdatedEvent);
+    return () => {
+      window.removeEventListener('ct-user-updated', handleUserUpdatedEvent);
+    };
+  }, [socket, roomId]);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {

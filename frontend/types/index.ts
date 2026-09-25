@@ -1,6 +1,7 @@
 export interface UserProfile {
   tag: string;
   handle: string;
+  hasChosenGender?: boolean;
   gender: string;
   bio: string;
   profilePicture?: string;

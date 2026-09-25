@@ -165,7 +165,7 @@ export function VideoTile({
       {/* Bottom Overlay: Handle Tag & Status */}
       <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between px-2 py-1 rounded bg-black/60 backdrop-blur-md text-white text-xs font-mono font-bold z-10 border border-white/10">
         <span className="truncate max-w-[140px] sm:max-w-[180px]">
-          {name} <span className="text-white/60 font-normal">#{tag}</span>
+          {name} {!name.includes('#') && <span className="text-white/60 font-normal">#{tag}</span>}
         </span>
         {isSelf && (
           <span className="text-[10px] px-1 rounded bg-primary text-primary-foreground font-sans font-bold">

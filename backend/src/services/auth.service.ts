@@ -28,7 +28,8 @@ export async function generateUniqueTag(gender?: string): Promise<{ tag: string;
       inMemoryCounter++;
     }
 
-    const handle = generateRealisticName(gender);
+    const hasChosenGender = Boolean(gender);
+    const handle = hasChosenGender ? generateRealisticName(gender, nextId) : '';
 
     // Upsert into users database
     await User.findOneAndUpdate(
@@ -37,7 +38,8 @@ export async function generateUniqueTag(gender?: string): Promise<{ tag: string;
         tag: nextId,
         tagNum: seq,
         handle,
-        gender: gender || 'skip',
+        gender: gender || '',
+        hasChosenGender,
         lastActiveAt: new Date()
       },
       { upsert: true, new: true }
@@ -47,7 +49,7 @@ export async function generateUniqueTag(gender?: string): Promise<{ tag: string;
   } catch (error) {
     console.error('Error generating unique tag:', error);
     const fallbackTag = Math.floor(1000 + Math.random() * 9000).toString();
-    const fallbackHandle = generateRealisticName(gender);
+    const fallbackHandle = gender ? generateRealisticName(gender, fallbackTag) : '';
     return { tag: fallbackTag, handle: fallbackHandle };
   }
 }

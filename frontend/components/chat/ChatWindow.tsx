@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Socket } from 'socket.io-client';
 import { MessageSquare, X, Send, CornerDownRight, Smile } from 'lucide-react';
 import { CommentItem, UserProfile } from '@/types';
@@ -10,7 +11,6 @@ import { TypingIndicator } from './TypingIndicator';
 import { EmojiPickerPopover } from './EmojiPickerPopover';
 import { useTyping } from '@/hooks/useTyping';
 import { useVotes } from '@/hooks/useVotes';
-import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { ChatMessageSkeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -32,11 +32,15 @@ export function ChatWindow({ isOpen, onClose, roomId, socket, user }: ChatWindow
   const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { playSendSound, playReceiveSound, playTypingSound } = useSoundEffects();
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
 
   const { onUserTyping, onUserStopTyping, typingMessage } = useTyping({
     socket,
@@ -74,11 +78,6 @@ export function ChatWindow({ isOpen, onClose, roomId, socket, user }: ChatWindow
         if (prev.some((c) => c._id === comment._id)) return prev;
         return [...prev, comment];
       });
-
-      // Play audio notification if sent by another participant
-      if (comment.authorTag !== user?.tag) {
-        playReceiveSound();
-      }
 
       // Auto scroll to bottom
       setTimeout(() => {
@@ -143,7 +142,6 @@ export function ChatWindow({ isOpen, onClose, roomId, socket, user }: ChatWindow
       }
       setReplyingTo(null);
       onUserStopTyping();
-      playSendSound();
     } catch (err: any) {
       console.error('Error posting comment:', err.message);
     } finally {
@@ -184,27 +182,30 @@ export function ChatWindow({ isOpen, onClose, roomId, socket, user }: ChatWindow
     });
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <aside
+      id="chat-drawer"
       className={cn(
-        'fixed top-0 right-0 h-full w-full sm:w-[400px] bg-card border-l-4 border-border shadow-brutal-lg z-50 flex flex-col transition-transform duration-300 ease-in-out',
-        isOpen ? 'translate-x-0' : 'translate-x-full'
+        'fixed inset-y-0 right-0 w-full sm:w-[400px] max-w-full h-[100dvh] max-h-[100dvh] bg-card border-l-2 sm:border-l-4 border-border shadow-2xl z-[70] flex flex-col transition-transform duration-300 ease-in-out',
+        isOpen ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b-2 border-border bg-card/80 backdrop-blur">
+      <div className="shrink-0 flex items-center justify-between px-3 py-2.5 sm:px-4 sm:py-3 border-b-2 border-border bg-card/95 backdrop-blur">
         <div className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5 text-primary" />
-          <h2 className="text-base font-bold font-mono uppercase tracking-wide">
-            Cockroach Talk
+          <MessageSquare className="h-4 sm:h-5 w-4 sm:w-5 text-primary" />
+          <h2 className="text-sm sm:text-base font-bold font-mono uppercase tracking-wide">
+            Talk
           </h2>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as any)}
-            className="text-xs bg-secondary border border-border rounded-brutal-sm px-2 py-1 font-mono text-foreground focus:outline-none focus:border-primary"
+            className="text-[11px] sm:text-xs bg-secondary border border-border rounded-brutal-sm px-2 py-1 font-mono text-foreground focus:outline-none focus:border-primary"
           >
             <option value="best">Best</option>
             <option value="new">New</option>
@@ -214,26 +215,27 @@ export function ChatWindow({ isOpen, onClose, roomId, socket, user }: ChatWindow
 
           <button
             onClick={onClose}
-            className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
+            aria-label="Close chat"
+            className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 sm:h-5 w-4 sm:w-5" />
           </button>
         </div>
       </div>
 
       {/* Messages Feed */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-2 sm:p-3 space-y-1">
         {loading ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, idx) => (
               <ChatMessageSkeleton key={idx} />
             ))}
           </div>
         ) : comments.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground text-sm font-sans p-6">
-            <MessageSquare className="h-10 w-10 text-border mb-3" />
-            <p className="font-bold text-foreground mb-1">No comments yet</p>
-            <p className="text-xs">Be the first to share your thoughts in this junction!</p>
+            <MessageSquare className="h-9 w-9 text-border mb-2" />
+            <p className="font-bold text-foreground mb-1 text-xs sm:text-sm">No comments yet</p>
+            <p className="text-[11px] sm:text-xs">Be the first to share your thoughts in this junction!</p>
           </div>
         ) : (
           comments.map((comment) => (
@@ -265,10 +267,10 @@ export function ChatWindow({ isOpen, onClose, roomId, socket, user }: ChatWindow
 
       {/* Replying Banner */}
       {replyingTo && (
-        <div className="flex items-center justify-between px-4 py-1.5 bg-secondary text-xs text-accent-coral border-t border-border">
+        <div className="shrink-0 flex items-center justify-between px-3 py-1 bg-secondary text-xs text-accent-coral border-t border-border">
           <div className="flex items-center gap-1.5 truncate">
             <CornerDownRight className="h-3 w-3 shrink-0" />
-            <span className="truncate">
+            <span className="truncate text-[11px]">
               Replying to <strong className="text-foreground">{replyingTo.name}</strong>
             </span>
           </div>
@@ -282,18 +284,21 @@ export function ChatWindow({ isOpen, onClose, roomId, socket, user }: ChatWindow
       )}
 
       {/* Input area */}
-      <form onSubmit={handleSubmit} className="p-3 border-t-2 border-border bg-card">
+      <form
+        onSubmit={handleSubmit}
+        className="shrink-0 p-2 sm:p-2.5 border-t-2 border-border bg-card pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      >
         <TypingIndicator message={typingMessage} />
 
         {/* Inline Quick Reaction Emojis + Full Emoji Picker Button */}
-        <div className="flex items-center justify-between gap-1.5 mb-2 overflow-x-auto no-scrollbar py-0.5">
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-between gap-1 mb-1.5 overflow-x-auto no-scrollbar py-0.5">
+          <div className="flex items-center gap-1">
             {EMOJIS.map((emoji) => (
               <button
                 key={emoji}
                 type="button"
                 onClick={() => insertEmojiAtCursor(emoji)}
-                className="text-base hover:scale-125 transition-transform p-0.5"
+                className="text-sm sm:text-base hover:scale-125 transition-transform p-0.5"
                 title={`Insert ${emoji}`}
               >
                 {emoji}
@@ -307,16 +312,16 @@ export function ChatWindow({ isOpen, onClose, roomId, socket, user }: ChatWindow
               type="button"
               aria-label="Browse full emoji picker"
               title="Browse all emojis"
-              className="flex items-center gap-1 text-[11px] font-mono font-bold text-muted-foreground hover:text-primary transition-colors px-1.5 py-0.5 rounded-brutal-sm hover:bg-secondary shrink-0 border border-transparent hover:border-border cursor-pointer"
+              className="flex items-center gap-1 text-[10px] sm:text-[11px] font-mono font-bold text-muted-foreground hover:text-primary transition-colors px-1.5 py-0.5 rounded-brutal-sm hover:bg-secondary shrink-0 border border-transparent hover:border-border cursor-pointer"
             >
-              <Smile className="h-3.5 w-3.5" />
+              <Smile className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               <span>More</span>
             </button>
           </EmojiPickerPopover>
         </div>
 
-        <div className="flex gap-2 items-end">
-          <div className="relative flex-1">
+        <div className="flex gap-1.5 sm:gap-2 items-end">
+          <div className="relative flex-1 min-w-0">
             <textarea
               ref={textareaRef}
               rows={1}
@@ -324,9 +329,8 @@ export function ChatWindow({ isOpen, onClose, roomId, socket, user }: ChatWindow
               onChange={(e) => {
                 setInputBody(e.target.value);
                 onUserTyping();
-                playTypingSound();
                 e.target.style.height = 'auto';
-                e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`;
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -337,11 +341,11 @@ export function ChatWindow({ isOpen, onClose, roomId, socket, user }: ChatWindow
               placeholder={user ? "What are your thoughts?" : "Joining session..."}
               disabled={!user}
               maxLength={1000}
-              className="w-full bg-background text-foreground text-sm border-2 border-border rounded-brutal-sm py-2.5 pl-3 pr-10 placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none font-sans min-h-[44px] max-h-[120px] leading-5 block"
+              className="w-full bg-background text-foreground text-xs sm:text-sm border-2 border-border rounded-brutal-sm py-1.5 sm:py-2 pl-2.5 pr-8 sm:pr-9 placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none font-sans min-h-[38px] sm:min-h-[42px] max-h-[100px] leading-snug block"
             />
 
             {/* Dedicated Emoji Picker trigger inside the message input */}
-            <div className="absolute right-2.5 bottom-[7px]">
+            <div className="absolute right-1.5 sm:right-2 bottom-[5px]">
               <EmojiPickerPopover onSelectEmoji={insertEmojiAtCursor}>
                 <button
                   type="button"
@@ -349,7 +353,7 @@ export function ChatWindow({ isOpen, onClose, roomId, socket, user }: ChatWindow
                   title="Choose Emoji"
                   className="p-1 rounded text-muted-foreground hover:text-primary transition-colors hover:bg-secondary focus:outline-none cursor-pointer flex items-center justify-center"
                 >
-                  <Smile className="h-4 w-4" />
+                  <Smile className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </EmojiPickerPopover>
             </div>
@@ -361,16 +365,17 @@ export function ChatWindow({ isOpen, onClose, roomId, socket, user }: ChatWindow
             aria-label="Send message"
             title="Send message"
             className={cn(
-              'h-11 w-11 shrink-0 rounded-brutal-sm border-2 flex items-center justify-center transition-all duration-150 active:scale-95',
+              'h-[38px] w-[38px] sm:h-[42px] sm:w-[42px] shrink-0 rounded-brutal-sm border-2 flex items-center justify-center transition-all duration-150 active:scale-95',
               inputBody.trim() && user && !isSubmitting
                 ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90 cursor-pointer shadow-sm'
                 : 'bg-secondary/60 text-muted-foreground/40 border-border/60 cursor-not-allowed'
             )}
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>
         </div>
       </form>
-    </aside>
+    </aside>,
+    document.body
   );
 }

@@ -110,23 +110,26 @@ export function ReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-card border-3 border-border shadow-brutal-lg">
-        <DialogHeader>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="p-2 rounded-brutal-sm bg-accent-coral/20 border-2 border-accent-coral text-accent-coral">
-              <Flag className="h-5 w-5" />
+      <DialogContent className="max-w-md w-[92vw] sm:w-full max-h-[85dvh] flex flex-col gap-0 p-0 overflow-hidden bg-card border-3 border-border shadow-brutal-lg">
+        {/* Fixed Header */}
+        <div className="shrink-0 p-4 sm:p-5 pr-12 border-b-2 border-border bg-card">
+          <DialogHeader className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-brutal-sm bg-accent-coral/20 border-2 border-accent-coral text-accent-coral shrink-0">
+                <Flag className="h-4 w-4" />
+              </div>
+              <DialogTitle className="text-lg sm:text-xl font-black font-mono uppercase tracking-tight">
+                Report Abuse
+              </DialogTitle>
             </div>
-            <DialogTitle className="text-xl font-black font-mono uppercase tracking-tight">
-              Report Abuse
-            </DialogTitle>
-          </div>
-          <DialogDescription className="text-xs text-muted-foreground font-sans">
-            Reports are audited live and factor directly into our automated device strike and escalation system.
-          </DialogDescription>
-        </DialogHeader>
+            <DialogDescription className="text-xs text-muted-foreground font-sans text-left">
+              Reports are audited live and factor directly into our automated device strike and escalation system.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
         {submitted ? (
-          <div className="py-8 text-center space-y-3 animate-in fade-in-50">
+          <div className="py-12 px-6 text-center space-y-3 animate-in fade-in-50 flex flex-col items-center justify-center">
             <div className="mx-auto w-12 h-12 rounded-full bg-primary/20 border-2 border-primary text-primary flex items-center justify-center">
               <CheckCircle className="h-6 w-6" />
             </div>
@@ -136,67 +139,71 @@ export function ReportDialog({
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-            {/* Target Identity Context */}
-            <div className="p-2.5 rounded-brutal-sm border-2 border-border bg-secondary/30 text-xs font-mono space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Reported User:</span>
-                <span className="font-bold text-primary">{reportedName}</span>
+          <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            {/* Scrollable Body */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-4">
+              {/* Target Identity Context */}
+              <div className="p-2.5 rounded-brutal-sm border-2 border-border bg-secondary/30 text-xs font-mono space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Reported User:</span>
+                  <span className="font-bold text-primary">{reportedName}</span>
+                </div>
+                {messageText && (
+                  <div className="pt-1 border-t border-border/40 text-[11px] text-muted-foreground truncate italic">
+                    &quot;{messageText}&quot;
+                  </div>
+                )}
               </div>
-              {messageText && (
-                <div className="pt-1 border-t border-border/40 text-[11px] text-muted-foreground truncate italic">
-                  &quot;{messageText}&quot;
+
+              {/* Category Selector */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-mono font-bold uppercase text-foreground">
+                  Violation Category
+                </label>
+                <div className="space-y-1.5">
+                  {CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setCategory(cat.id)}
+                      className={`w-full text-left p-2.5 rounded-brutal-sm border-2 transition-all flex flex-col ${
+                        category === cat.id
+                          ? 'border-primary bg-primary/10 shadow-brutal-sm text-foreground'
+                          : 'border-border bg-card hover:bg-secondary/40 text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <span className="font-mono text-xs font-bold uppercase">{cat.label}</span>
+                      <span className="font-sans text-[11px] opacity-80">{cat.description}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Additional Note */}
+              <div className="space-y-1">
+                <label className="block text-xs font-mono font-bold uppercase text-foreground">
+                  Additional Context (Optional)
+                </label>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Describe what occurred or what guidelines were broken..."
+                  rows={3}
+                  maxLength={500}
+                  className="w-full rounded-brutal-sm border-2 border-border bg-background p-2.5 font-sans text-xs focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                />
+              </div>
+
+              {error && (
+                <div className="p-2.5 rounded-brutal-sm border-2 border-destructive bg-destructive/10 text-destructive text-xs font-mono flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>{error}</span>
                 </div>
               )}
             </div>
 
-            {/* Category Selector */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-mono font-bold uppercase text-foreground">
-                Violation Category
-              </label>
-              <div className="space-y-1.5">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setCategory(cat.id)}
-                    className={`w-full text-left p-2.5 rounded-brutal-sm border-2 transition-all flex flex-col ${
-                      category === cat.id
-                        ? 'border-primary bg-primary/10 shadow-brutal-sm text-foreground'
-                        : 'border-border bg-card hover:bg-secondary/40 text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <span className="font-mono text-xs font-bold uppercase">{cat.label}</span>
-                    <span className="font-sans text-[11px] opacity-80">{cat.description}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Additional Note */}
-            <div className="space-y-1">
-              <label className="block text-xs font-mono font-bold uppercase text-foreground">
-                Additional Context (Optional)
-              </label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Describe what occurred or what guidelines were broken..."
-                rows={3}
-                maxLength={500}
-                className="w-full rounded-brutal-sm border-2 border-border bg-background p-2.5 font-sans text-xs focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-              />
-            </div>
-
-            {error && (
-              <div className="p-2.5 rounded-brutal-sm border-2 border-destructive bg-destructive/10 text-destructive text-xs font-mono flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 pt-2">
+            {/* Fixed Footer */}
+            <div className="shrink-0 p-3 sm:p-4 border-t-2 border-border bg-card flex justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"

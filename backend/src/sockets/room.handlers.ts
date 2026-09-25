@@ -95,7 +95,13 @@ export function registerRoomHandlers(
     }
 
     const safeTag = userProfile?.tag || Math.floor(1000 + Math.random() * 9000).toString();
-    const rawName = userProfile?.displayName || userProfile?.handle || generateRealisticName(userProfile?.gender);
+    const safeGender = userProfile?.gender || 'skip';
+    const isSkipGender = !userProfile?.gender || userProfile.gender === 'skip' || userProfile.gender === 'prefer_not_to_say';
+    let baseHandle = userProfile?.displayName || userProfile?.handle;
+    if (isSkipGender && (!baseHandle || !baseHandle.startsWith('Cockroach #'))) {
+      baseHandle = `Cockroach #${safeTag}`;
+    }
+    const rawName = baseHandle || generateRealisticName(userProfile?.gender, safeTag);
 
     // Check existing names in room to avoid collision
     const existingNamesInRoom = [
@@ -103,7 +109,6 @@ export function registerRoomHandlers(
       ...room.waitingQueue.filter((q) => String(q.tag) !== String(safeTag)).map((q) => q.displayName)
     ];
     const safeName = resolveRoomDisplayName(rawName, existingNamesInRoom);
-    const safeGender = userProfile?.gender || 'skip';
 
     const currentProfile: ActiveMember = {
       ...userProfile,
@@ -410,6 +415,7 @@ export function registerRoomHandlers(
   socket.on(
     'update-profile',
     (updatedData: {
+      roomId?: string;
       handle?: string;
       avatarType?: 'initials' | 'identicon' | 'emoji';
       avatarValue?: string;
@@ -417,23 +423,29 @@ export function registerRoomHandlers(
       bubbleStyle?: 'sharp' | 'rounded' | 'outline';
       statusTag?: string;
     }) => {
-      const roomId = getCurrentRoomId();
-      const profile = getUserProfile();
-      if (!profile) return;
+      const activeRoomId = updatedData.roomId || getCurrentRoomId();
+      let profile = getUserProfile();
 
-      if (updatedData.handle) profile.displayName = updatedData.handle;
-      if (updatedData.avatarType) profile.avatarType = updatedData.avatarType;
-      if (updatedData.avatarValue !== undefined) profile.avatarValue = updatedData.avatarValue;
-      if (updatedData.accentColor) profile.accentColor = updatedData.accentColor;
-      if (updatedData.bubbleStyle) profile.bubbleStyle = updatedData.bubbleStyle;
-      if (updatedData.statusTag !== undefined) profile.statusTag = updatedData.statusTag;
+      if (!profile && activeRoomId && junctionRooms.has(activeRoomId)) {
+        const room = junctionRooms.get(activeRoomId)!;
+        profile = room.activeMembers.find((m) => m.socketId === socket.id) ||
+                  room.waitingQueue.find((q) => q.socketId === socket.id);
+      }
 
-      setUserProfile(profile);
+      if (profile) {
+        if (updatedData.handle) profile.displayName = updatedData.handle;
+        if (updatedData.avatarType) profile.avatarType = updatedData.avatarType;
+        if (updatedData.avatarValue !== undefined) profile.avatarValue = updatedData.avatarValue;
+        if (updatedData.accentColor) profile.accentColor = updatedData.accentColor;
+        if (updatedData.bubbleStyle) profile.bubbleStyle = updatedData.bubbleStyle;
+        if (updatedData.statusTag !== undefined) profile.statusTag = updatedData.statusTag;
+        setUserProfile(profile);
+      }
 
-      if (roomId && junctionRooms.has(roomId)) {
-        const room = junctionRooms.get(roomId)!;
+      if (activeRoomId && junctionRooms.has(activeRoomId)) {
+        const room = junctionRooms.get(activeRoomId)!;
         const activeMem = room.activeMembers.find(
-          (m) => m.socketId === socket.id || String(m.tag) === String(profile.tag)
+          (m) => m.socketId === socket.id || (profile && String(m.tag) === String(profile.tag))
         );
         if (activeMem) {
           if (updatedData.handle) activeMem.displayName = updatedData.handle;
@@ -445,7 +457,7 @@ export function registerRoomHandlers(
         }
 
         const queueMem = room.waitingQueue.find(
-          (q) => q.socketId === socket.id || String(q.tag) === String(profile.tag)
+          (q) => q.socketId === socket.id || (profile && String(q.tag) === String(profile.tag))
         );
         if (queueMem) {
           if (updatedData.handle) queueMem.displayName = updatedData.handle;
@@ -456,10 +468,10 @@ export function registerRoomHandlers(
           if (updatedData.statusTag !== undefined) queueMem.statusTag = updatedData.statusTag;
         }
 
-        broadcastRoomState(roomId);
-        io.to(roomId).emit('user-profile-updated', {
+        broadcastRoomState(activeRoomId);
+        io.to(activeRoomId).emit('user-profile-updated', {
           socketId: socket.id,
-          tag: profile.tag,
+          tag: profile?.tag || activeMem?.tag || queueMem?.tag,
           ...updatedData
         });
       }

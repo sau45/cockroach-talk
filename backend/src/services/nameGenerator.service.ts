@@ -10,21 +10,28 @@ export function getRandomElement<T>(array: T[]): T {
  * If gender is omitted, 'skip', or other, draws from the combined pool.
  * Returns a first name + surname combination.
  */
-export function generateRealisticName(gender?: string | null): string {
+export function generateRealisticName(gender?: string | null, tag?: string | number | null): string {
+  const normalizedGender = gender?.toLowerCase()?.trim();
+
+  // If user chooses 'skip', 'prefer_not_to_say', or anything other than 'male'/'female', assign anonymous unique Cockroach identity
+  if (!normalizedGender || normalizedGender === 'skip' || normalizedGender === 'prefer_not_to_say') {
+    const id = tag || Math.floor(1000 + Math.random() * 9000);
+    return `Cockroach #${id}`;
+  }
+
   // 1. Pick a random culture/region pool
   const pool: RegionNamePool = getRandomElement(ALL_NAME_POOLS);
 
   // 2. Select first name candidates based on gender preference
   let firstNameCandidates: string[];
-  const normalizedGender = gender?.toLowerCase();
 
   if (normalizedGender === 'male') {
     firstNameCandidates = pool.firstNames.male;
   } else if (normalizedGender === 'female') {
     firstNameCandidates = pool.firstNames.female;
   } else {
-    // Unisex / Prefer not to say / Random / Fallback
-    firstNameCandidates = [...pool.firstNames.male, ...pool.firstNames.female];
+    const id = tag || Math.floor(1000 + Math.random() * 9000);
+    return `Cockroach #${id}`;
   }
 
   // 3. Pick a first name and a last name

@@ -1,6 +1,7 @@
 export interface UserSession {
   tag: string;
   handle: string;
+  hasChosenGender?: boolean;
   gender?: string;
   bio?: string;
   profilePicture?: string;

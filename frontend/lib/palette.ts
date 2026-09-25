@@ -114,9 +114,45 @@ export const ACCENT_PALETTES: Record<string, AccentPaletteItem> = {
 
 export const DEFAULT_ACCENT = ACCENT_PALETTES['cyber-purple'];
 
+export const SWATCH_COLORS = [
+  { name: 'Cyber Purple', hex: '#9F75FF' },
+  { name: 'Electric Blue', hex: '#38BDF8' },
+  { name: 'Neon Coral', hex: '#FF6B6B' },
+  { name: 'Lime Punk', hex: '#84CC16' },
+  { name: 'Pure Gold', hex: '#FCD34D' },
+  { name: 'Hot Pink', hex: '#EC4899' },
+  { name: 'Mint Glow', hex: '#2DD4BF' },
+  { name: 'Crimson', hex: '#EF4444' },
+  { name: 'Sunset Orange', hex: '#FB923C' },
+  { name: 'Neon Amber', hex: '#F59E0B' },
+  { name: 'Emerald', hex: '#10B981' },
+  { name: 'Electric Indigo', hex: '#6366F1' },
+  { name: 'Vibrant Violet', hex: '#8B5CF6' },
+  { name: 'Fuchsia Neon', hex: '#D946EF' },
+  { name: 'Cyan Glow', hex: '#06B6D4' },
+  { name: 'Solar Yellow', hex: '#EAB308' }
+];
+
 export function getAccentPalette(token?: string): AccentPaletteItem {
   if (!token) return DEFAULT_ACCENT;
-  return ACCENT_PALETTES[token] || DEFAULT_ACCENT;
+  if (ACCENT_PALETTES[token]) return ACCENT_PALETTES[token];
+
+  // Match hex color (e.g. #FF6B6B, #9F75FF, or without leading hash)
+  const cleanHex = token.startsWith('#') ? token : `#${token}`;
+  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(cleanHex)) {
+    return {
+      id: cleanHex,
+      name: cleanHex.toUpperCase(),
+      hex: cleanHex,
+      borderClass: '',
+      textClass: '',
+      bgClass: '',
+      ringClass: '',
+      shadowClass: ''
+    };
+  }
+
+  return DEFAULT_ACCENT;
 }
 
 export interface EmojiCategory {

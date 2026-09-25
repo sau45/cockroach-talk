@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Mic,
   MicOff,
@@ -85,12 +86,25 @@ export function RoomDock({
   onToggleRecording
 }: RoomDockProps) {
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   return (
     <>
-      {/* Responsive Dock: Anchored Native Bottom Bar on Mobile; Floating Centered Pill on Desktop */}
-      <div className="fixed bottom-0 left-0 right-0 w-full sm:bottom-6 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto z-40 flex flex-col items-center pointer-events-auto">
-        <div className="w-full sm:w-auto flex flex-col items-center px-4 py-2 sm:p-2.5 bg-card/95 border-t-2 sm:border-2 border-border sm:rounded-brutal-md shadow-brutal-lg backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      {/* Fixed Viewport Bottom Dock Portal: 100% immune to page scrolling */}
+      {createPortal(
+        <div
+          className={cn(
+            'fixed inset-x-0 bottom-0 sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-auto z-50 flex flex-col items-center pointer-events-none transition-all duration-200',
+            isChatOpen && 'hidden sm:flex'
+          )}
+        >
+          <div className="w-full sm:w-auto flex flex-col items-center px-4 py-2 sm:p-2.5 bg-card/98 border-t-2 sm:border-2 border-border sm:rounded-brutal-md shadow-[0_-4px_24px_rgba(0,0,0,0.4)] sm:shadow-brutal-lg backdrop-blur-lg pb-[max(0.75rem,env(safe-area-inset-bottom))] pointer-events-auto">
           {/* Top Emoji Quick Row & Role Status Tag */}
           <div className="flex items-center justify-between w-full max-w-[340px] sm:max-w-none sm:min-w-[280px] pb-1.5 mb-1.5 border-b border-border/50 gap-2">
             {/* Status indicator */}
@@ -296,7 +310,9 @@ export function RoomDock({
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
+    )}
 
       {/* Leave Room Confirmation Dialog */}
       <Dialog open={leaveModalOpen} onOpenChange={setLeaveModalOpen}>

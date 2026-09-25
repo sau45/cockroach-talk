@@ -4,6 +4,7 @@ export interface IUser extends Document {
   tag: string;
   tagNum: number;
   handle: string;
+  hasChosenGender?: boolean;
   gender?: string;
   bio?: string;
   profilePicture?: string;
@@ -22,8 +23,9 @@ const userSchema = new Schema<IUser>(
   {
     tag: { type: String, required: true, unique: true, index: true },
     tagNum: { type: Number, required: true },
-    handle: { type: String, required: true },
-    gender: { type: String, default: 'skip' },
+    handle: { type: String, default: '' },
+    hasChosenGender: { type: Boolean, default: false },
+    gender: { type: String, default: '' },
     bio: { type: String, default: '' },
     profilePicture: { type: String, default: '' },
     avatarType: { type: String, enum: ['initials', 'identicon', 'emoji'], default: 'initials' },
